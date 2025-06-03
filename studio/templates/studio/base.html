@@ -61,7 +61,7 @@
     </div>
 
     <div class="modal fade" id="mediaSelectorModal" tabindex="-1" aria-labelledby="mediaSelectorModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-xl modal-dialog-scrollable"> {# Increased size to modal-xl #}
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="mediaSelectorModalLabel">Choose from Your Media</h5>
@@ -95,7 +95,7 @@
     let currentMediaSelectorTargetPreviewContainerId = null;
     let currentMediaSelectorTargetPreviewImgId = null;
     let currentMediaSelectorTargetFileUploadIdToClear = null;
-    let currentMediaSelectorMediaType = 'image'; // Default, will be updated by openMediaSelector
+    let currentMediaSelectorMediaType = 'image'; // Default, updated by openMediaSelector
 
     // --- Global Helper Functions ---
     function copyToClipboard(text, buttonElement) {
@@ -128,7 +128,7 @@
         if (!inputElement) { /* console.warn("setupImagePreview: Upload input not found:", uploadInputId); */ return; }
         const previewContainer = document.getElementById(uploadPreviewContainerId);
         const previewImage = document.getElementById(uploadPreviewImgId);
-        const mediaPathInput = document.getElementById(mediaPathInputIdToClear);
+        const mediaPathInput = document.getElementById(mediaPathInputIdToClear); // ID of the text input for media path
 
         if (previewContainer && previewImage) {
             inputElement.addEventListener('change', function(event) {
@@ -140,25 +140,31 @@
                         previewContainer.style.display = 'block';
                     }
                     reader.readAsDataURL(file);
-                    if (mediaPathInput) { mediaPathInput.value = ''; } 
+                    if (mediaPathInput) { mediaPathInput.value = ''; } // Clear the corresponding media path input
                     
+                    // Hide the GCS/Media Path preview if an upload is made for the same item group
                     const gcsPreviewContainerId = uploadPreviewContainerId.replace('_upload_preview_container', '_gcs_preview_container');
-                    removeGCSPreview(mediaPathInputIdToClear, gcsPreviewContainerId, gcsPreviewContainerId.replace('_gcs_preview_container', '_gcs_preview'));
+                    const gcsPreviewContainer = document.getElementById(gcsPreviewContainerId);
+                    if (gcsPreviewContainer) {
+                        const gcsPreviewImg = document.getElementById(gcsPreviewContainerId.replace('_container', '_preview'));
+                        const gcsPreviewText = document.getElementById(gcsPreviewContainerId.replace('_container', '_text'));
+                        if(gcsPreviewImg) gcsPreviewImg.src = '#';
+                        gcsPreviewContainer.style.display = 'none';
+                        if(gcsPreviewText) gcsPreviewText.style.display = 'none';
+                    }
 
-                } else {
+                } else { // No file selected (e.g., user cleared the file input)
                     previewImage.src = '#';
                     previewContainer.style.display = 'none';
                 }
             });
-        } else {
-            // console.warn("setupImagePreview: Preview container or image element not found for", uploadInputId);
         }
     }
 
     function removeImagePreview(uploadInputId, uploadPreviewContainerId, uploadPreviewImgId) {
         const inputElement = document.getElementById(uploadInputId);
         if (!inputElement) return;
-        inputElement.value = null;
+        inputElement.value = null; // This clears the file selection
         
         const previewContainer = document.getElementById(uploadPreviewContainerId);
         const previewImage = document.getElementById(uploadPreviewImgId);
@@ -168,7 +174,7 @@
 
     function removeGCSPreview(mediaPathInputId, gcsPreviewContainerId, gcsPreviewImgId) {
         const mediaPathInput = document.getElementById(mediaPathInputId);
-        if (mediaPathInput) mediaPathInput.value = '';
+        if (mediaPathInput) mediaPathInput.value = ''; // Clear the text input
 
         const gcsPreviewContainer = document.getElementById(gcsPreviewContainerId);
         const gcsPreviewImage = document.getElementById(gcsPreviewImgId);
@@ -185,7 +191,7 @@
         currentMediaSelectorTargetPreviewContainerId = targetGCSPreviewContainerId;
         currentMediaSelectorTargetPreviewImgId = targetGCSPreviewImgId;
         currentMediaSelectorTargetFileUploadIdToClear = targetFileUploadIdToClear;
-        currentMediaSelectorMediaType = mediaType;
+        currentMediaSelectorMediaType = mediaType; // Store the mediaType for search
 
         const modalElement = document.getElementById('mediaSelectorModal');
         if (!modalElement) { console.error("Media Selector Modal HTML (#mediaSelectorModal) not found!"); return; }
@@ -201,13 +207,13 @@
         gallery.innerHTML = ''; 
         errorDiv.style.display = 'none';
         spinner.style.display = 'block';
-        searchInput.value = '';
+        searchInput.value = ''; // Clear search on open
         document.getElementById('mediaSelectorModalLabel').textContent = `Choose from Your ${mediaType.charAt(0).toUpperCase() + mediaType.slice(1)}s`;
         
         try { modal.show(); } 
         catch (e) { console.error("Error showing Bootstrap modal:", e); spinner.style.display = 'none'; errorDiv.textContent = "Error opening media selector."; errorDiv.style.display = 'block'; return; }
 
-        fetchMediaForSelector(mediaType, '');
+        fetchMediaForSelector(mediaType, ''); // Initial fetch
     }
 
     function fetchMediaForSelector(mediaType, searchTerm) {
@@ -237,21 +243,26 @@
                 }
                 if (data.media_files && data.media_files.length > 0) {
                     data.media_files.forEach(item => {
-                        if (!item.url || item.url.startsWith("#error")) return;
+                        if (!item.url_for_display || item.url_for_display.startsWith("#error")) { // Check url_for_display
+                            console.warn("Skipping item with invalid display URL:", item);
+                            return; 
+                        }
 
                         const itemCard = document.createElement('div');
-                        // ... (rest of card creation logic as previously provided)
                         itemCard.className = 'gallery-item card media-selector-item';
                         itemCard.style.cursor = 'pointer';
                         itemCard.dataset.gcsPath = item.gcs_path; 
-                        itemCard.dataset.signedUrl = item.url;
+                        itemCard.dataset.displayUrl = item.url_for_display; // URL for preview on main form
 
                         let mediaElementHTML;
+                        // Use item.url_for_display for thumbnails in the modal
                         if (item.type === 'image') {
-                            mediaElementHTML = `<img src="${item.url}" class="card-img-top" alt="${item.name}" style="height: 120px; object-fit: cover;">`;
+                            mediaElementHTML = `<img src="${item.url_for_display}" class="card-img-top" alt="${item.name}" style="height: 120px; object-fit: cover;">`;
                         } else if (item.type === 'video') {
-                            mediaElementHTML = `<video width="100%" style="height: 120px; background-color:#000;" preload="metadata" muted loop onmouseover="this.play()" onmouseout="this.pause();this.currentTime=0;"><source src="${item.url}" type="video/mp4"></video>`;
-                        } else { mediaElementHTML = `<div class="p-2 text-muted small d-flex align-items-center justify-content-center" style="height:120px;">Preview N/A</div>`; }
+                            mediaElementHTML = `<video width="100%" style="height: 120px; background-color:#000;" preload="metadata" muted loop onmouseover="this.play()" onmouseout="this.pause();this.currentTime=0;"><source src="${item.url_for_display}" type="video/mp4"></video>`;
+                        } else { 
+                            mediaElementHTML = `<div class="p-2 text-muted small d-flex align-items-center justify-content-center" style="height:120px;">Preview N/A for ${item.name}</div>`;
+                        }
                         
                         itemCard.innerHTML = `
                             ${mediaElementHTML}
@@ -260,38 +271,41 @@
                             </div>
                         `;
                         itemCard.addEventListener('click', function() {
-                            selectMediaFromModal(this.dataset.gcsPath, this.dataset.signedUrl);
+                            selectMediaFromModal(this.dataset.gcsPath, this.dataset.displayUrl); // Pass displayUrl for preview
                             const modalInstance = bootstrap.Modal.getInstance(document.getElementById('mediaSelectorModal'));
                             if (modalInstance) modalInstance.hide();
                         });
                         gallery.appendChild(itemCard);
                     });
-                } else { gallery.innerHTML = '<p class="text-center text-muted p-3">No media found matching your criteria.</p>'; }
+                } else { gallery.innerHTML = '<p class="text-center text-muted p-3">No media found matching criteria.</p>'; }
             })
             .catch(error => {
                 spinner.style.display = 'none';
-                errorDiv.textContent = `Error fetching media: ${error.message}. Please check server logs.`; 
+                errorDiv.textContent = `Error fetching media: ${error.message}. Please check server logs or API endpoint.`; 
                 errorDiv.style.display = 'block';
                 console.error('Error fetching media for selector:', error);
             });
     }
 
-    function selectMediaFromModal(gcsPath, signedUrl) {
+    function selectMediaFromModal(gcsPath, displayUrlForPreview) {
         const targetInput = document.getElementById(currentMediaSelectorTargetInputId);
         const targetPreviewContainer = document.getElementById(currentMediaSelectorTargetPreviewContainerId);
         const targetPreviewImage = document.getElementById(currentMediaSelectorTargetPreviewImgId);
         const targetPreviewText = document.getElementById(currentMediaSelectorTargetPreviewContainerId ? currentMediaSelectorTargetPreviewContainerId.replace('_gcs_preview_container', '_gcs_preview_text') : null);
 
         if (targetInput) {
-            // For simplicity, store the full GCS path. The view's form processing
-            // can handle if it needs to be relative to a specific prefix for saving.
+            // The gcsPath from API is the full object path like 'media_studio_uploads/generated_images/img.png'
+            // The form field (e.g., original_image_media_path) should store this full path if the view is expecting it,
+            // or a relative path if that's what settings.GCS_OBJECT_PATH_PREFIX is for.
+            // For now, let's assume the view's get_pil_image_from_form_data handles the full path correctly.
             targetInput.value = gcsPath; 
         }
         if (targetPreviewImage && targetPreviewContainer) {
-            targetPreviewImage.src = signedUrl;
+            targetPreviewImage.src = displayUrlForPreview; // Use the display URL (proxy URL) for preview
             targetPreviewContainer.style.display = 'block';
             if (targetPreviewText) targetPreviewText.style.display = 'block';
         }
+        // Clear the corresponding file upload input
         if(currentMediaSelectorTargetFileUploadIdToClear) {
             removeImagePreview(currentMediaSelectorTargetFileUploadIdToClear, 
                                currentMediaSelectorTargetFileUploadIdToClear.replace('id_', '') + '_preview_container',
@@ -315,7 +329,32 @@
         const forms = document.querySelectorAll('form.studio-form');
         forms.forEach(form => {
             form.addEventListener('submit', function(event) {
-                // ... (button loading logic as before)
+                const submitButton = form.querySelector('button[type="submit"]');
+                if (submitButton && !submitButton.classList.contains('js-no-disable')) {
+                    submitButton.disabled = true;
+                    const buttonTextSpan = submitButton.querySelector('.button-text');
+                    const iconSpan = submitButton.querySelector('.material-icons-outlined');
+                    
+                    if (buttonTextSpan) {
+                        buttonTextSpan.dataset.originalText = buttonTextSpan.textContent;
+                        buttonTextSpan.textContent = 'Processing...';
+                    } else { // Fallback if no .button-text span
+                        submitButton.dataset.originalHTML = submitButton.innerHTML;
+                        submitButton.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...`;
+                    }
+                    if(iconSpan && buttonTextSpan) { // If there's a dedicated text span, hide icon next to it
+                        iconSpan.style.display = 'none'; 
+                        // Insert spinner before button-text span if it exists
+                        const spinner = document.createElement('span');
+                        spinner.className = 'spinner-border spinner-border-sm me-1';
+                        spinner.setAttribute('role', 'status');
+                        spinner.setAttribute('aria-hidden', 'true');
+                        submitButton.insertBefore(spinner, buttonTextSpan);
+                    } else if (iconSpan && !buttonTextSpan && !submitButton.querySelector('.spinner-border')) {
+                         // If only icon, replace with spinner
+                         submitButton.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...`;
+                    }
+                }
             });
         });
 
@@ -326,8 +365,11 @@
             mediaSearchInput.addEventListener('keyup', function(event) {
                 clearTimeout(searchTimeout);
                 searchTimeout = setTimeout(() => {
-                    fetchMediaForSelector(currentMediaSelectorMediaType, this.value.trim());
-                }, 500);
+                    // currentMediaSelectorMediaType is set when openMediaSelector is called
+                    if (typeof fetchMediaForSelector === "function") {
+                        fetchMediaForSelector(currentMediaSelectorMediaType, this.value.trim());
+                    }
+                }, 500); // Debounce search for 500ms
             });
         }
     });

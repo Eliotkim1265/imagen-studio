@@ -1,4 +1,5 @@
 {% extends "studio/base.html" %}
+{% load static %} {# Standard practice, though base.html loads main CSS #}
 {% block title %}Browse Media{% endblock %}
 
 {% block content_container %}
@@ -7,11 +8,10 @@
         <h1 class="main-title mb-0">Browse Your Media</h1>
     </div>
     <p class="text-muted mb-4">
-        Viewing images and videos from your Cloud Storage.
+        Viewing images and videos from your Shared Storage.
     </p>
 
     <form method="get" class="studio-form p-3 mb-4 bg-light border-0">
-        {# Filter form fields go here #}
         <div class="row g-2 align-items-end">
             <div class="col-md-4">
                 <label for="{{ filter_form.media_type.id_for_label }}" class="form-label">{{ filter_form.media_type.label }}</label>
@@ -27,51 +27,54 @@
                 </button>
             </div>
         </div>
-    </form> {# End of the filter form #}
+    </form>
 
     {% if media_files %}
     <div class="gallery-grid browse-gallery">
-        {% for media_item in media_files %}
+        {% for media_item in media_files %} {# Assuming media_files contains dicts with 'proxy_url', 'type', 'name', 'gcs_path' #}
         <div class="gallery-item card shadow-sm position-relative">
-            {% if media_item.url and not media_item.url|slice:":6" == "#error" %}
+            {% if media_item.proxy_url and not media_item.proxy_url|slice:":6" == "#error" %}
                 {% if media_item.type == 'image' %}
-                    <img src="{{ media_item.url }}" alt="Image from Cloud Storage: {{ media_item.name }}" class="card-img-top">
+                    <img src="{{ media_item.proxy_url }}" alt="Image: {{ media_item.name }}" class="card-img-top">
                 {% elif media_item.type == 'video' %}
                     <video controls width="100%" class="card-img-top" style="background-color: #000; min-height:200px;" preload="metadata" title="{{ media_item.name }}">
-                        <source src="{{ media_item.url }}" type="video/mp4">
+                        <source src="{{ media_item.proxy_url }}" type="video/mp4"> {# Assuming MP4, adjust if other video types served by proxy #}
                         Your browser does not support the video tag.
                     </video>
                 {% else %}
                     <div class="p-3 text-center text-muted small d-flex align-items-center justify-content-center" style="height: 200px;">Unsupported: {{ media_item.name }}</div>
                 {% endif %}
 
-                <a href="{{ media_item.url }}" download="{{ media_item.name|default:'download' }}" class="btn btn-sm btn-light btn-download-card" title="Download Media">
+                {# Download button now points to the proxy URL with a download flag #}
+                <a href="{{ media_item.proxy_url }}?download=true" download="{{ media_item.name|default:'download' }}" class="btn btn-sm btn-light btn-download-card" title="Download Media">
                     <span class="material-icons-outlined">download</span>
                 </a>
 
                 <div class="card-body p-2">
                     <p class="card-text small text-muted mb-1 text-truncate" title="{{ media_item.name }}">{{ media_item.name }}</p>
                     <div class="card-actions d-flex justify-content-between">
-                        <a href="{{ media_item.url }}" class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener noreferrer" title="View Full Size/Open">
+                        {# View button also uses the proxy URL #}
+                        <a href="{{ media_item.proxy_url }}" class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener noreferrer" title="View Full Size/Open">
                             <span class="material-icons-outlined">open_in_new</span>
                         </a>
                         {% if media_item.type == 'image' %}
+                        {# "Edit Again" link uses the gcs_path (full object path within bucket) #}
                         <a href="{% url 'studio:edit' %}?original_gcs_path={{ media_item.gcs_path }}" class="btn btn-sm btn-outline-primary" title="Edit this image">
                             <span class="material-icons-outlined">edit</span>
                         </a>
                         {% else %}
-                            <button class="btn btn-sm btn-outline-primary disabled" title="Edit not applicable for video type in this way">
+                            <button type="button" class="btn btn-sm btn-outline-primary disabled" title="Edit not applicable for video type in this way">
                                 <span class="material-icons-outlined">edit_off</span>
                             </button>
                         {% endif %}
-                         <button onclick="copyToClipboard('{{ media_item.url }}', this)" class="btn btn-sm btn-outline-secondary" title="Copy URL">
+                         <button type="button" onclick="copyToClipboard('{{ request.scheme }}://{{ request.get_host }}{{ media_item.proxy_url }}', this)" class="btn btn-sm btn-outline-secondary" title="Copy Link to Media">
                             <span class="material-icons-outlined">content_copy</span>
                         </button>
                     </div>
                 </div>
             {% else %}
                  <div class="card-body d-flex align-items-center justify-content-center p-3" style="height: 200px;">
-                    <div class="alert alert-warning m-0 text-center small">Could not load: {{ media_item.name }}.<br>{{ media_item.url }}</div>
+                    <div class="alert alert-warning m-0 text-center small">Could not load: {{ media_item.name }}.<br>{{ media_item.proxy_url|default:media_item.url }}</div>
                 </div>
             {% endif %}
         </div>
@@ -80,9 +83,9 @@
     {% else %}
     <div class="alert alert-info mt-4" role="alert">
             {% if not gcs_bucket_name or gcs_bucket_name == "your-gcs-bucket-name-here" %}
-                Cloud Storage bucket is not configured correctly. Please check application settings.
+                Shared storage is not configured correctly. Please contact your IT admin.
             {% else %}
-                No media files found matching your criteria in your Cloud Storage or the location is empty.
+                No media files found matching your criteria in your shared Storage or the location is empty.
             {% endif %}
         </div>
     {% endif %}
@@ -90,5 +93,5 @@
 {% endblock %}
 
 {% block extra_scripts %}
-{# copyToClipboard is global in base.html #}
+{# copyToClipboard is global in base.html, no page-specific JS needed for browse page's core functionality here #}
 {% endblock %}
