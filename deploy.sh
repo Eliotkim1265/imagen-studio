@@ -329,11 +329,11 @@ gcloud run deploy "${CLOUD_RUN_SERVICE_NAME}" \
   --platform=managed \
   --region="${GCP_REGION}" \
   --service-account="${CR_SA_EMAIL}" \
-  --allow-unauthenticated \   # Or --no-allow-unauthenticated and set up IAM/IAP
+  --allow-unauthenticated \   
   --port=8000 \
   --update-secrets="${SECRET_MAPPINGS_CLOUDRUN}" \
   --set-env-vars="${ENV_VARS_CLOUDRUN}" \
-  ${SQL_INSTANCE_FLAG_DEPLOY} \
+  --add-cloudsql-instances="${INSTANCE_CONNECTION_NAME_ENV_VAR_VALUE}" \
   --project="${GCP_PROJECT_ID}"
 
 # Capture the deployed service URL
