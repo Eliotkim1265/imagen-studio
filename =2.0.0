@@ -1,0 +1,30 @@
+Collecting google-cloud-storage
+  Downloading google_cloud_storage-3.1.0-py2.py3-none-any.whl.metadata (12 kB)
+Requirement already satisfied: google-auth<3.0dev,>=2.26.1 in ./.venv/lib/python3.11/site-packages (from google-cloud-storage) (2.40.2)
+Requirement already satisfied: google-api-core<3.0.0dev,>=2.15.0 in ./.venv/lib/python3.11/site-packages (from google-cloud-storage) (2.24.2)
+Collecting google-cloud-core<3.0dev,>=2.4.2 (from google-cloud-storage)
+  Downloading google_cloud_core-2.4.3-py2.py3-none-any.whl.metadata (2.7 kB)
+Collecting google-resumable-media>=2.7.2 (from google-cloud-storage)
+  Downloading google_resumable_media-2.7.2-py2.py3-none-any.whl.metadata (2.2 kB)
+Requirement already satisfied: requests<3.0.0dev,>=2.18.0 in ./.venv/lib/python3.11/site-packages (from google-cloud-storage) (2.32.3)
+Collecting google-crc32c<2.0dev,>=1.0 (from google-cloud-storage)
+  Downloading google_crc32c-1.7.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (2.3 kB)
+Requirement already satisfied: googleapis-common-protos<2.0.0,>=1.56.2 in ./.venv/lib/python3.11/site-packages (from google-api-core<3.0.0dev,>=2.15.0->google-cloud-storage) (1.70.0)
+Requirement already satisfied: protobuf!=3.20.0,!=3.20.1,!=4.21.0,!=4.21.1,!=4.21.2,!=4.21.3,!=4.21.4,!=4.21.5,<7.0.0,>=3.19.5 in ./.venv/lib/python3.11/site-packages (from google-api-core<3.0.0dev,>=2.15.0->google-cloud-storage) (5.29.5)
+Requirement already satisfied: proto-plus<2.0.0,>=1.22.3 in ./.venv/lib/python3.11/site-packages (from google-api-core<3.0.0dev,>=2.15.0->google-cloud-storage) (1.26.1)
+Requirement already satisfied: cachetools<6.0,>=2.0.0 in ./.venv/lib/python3.11/site-packages (from google-auth<3.0dev,>=2.26.1->google-cloud-storage) (5.5.2)
+Requirement already satisfied: pyasn1-modules>=0.2.1 in ./.venv/lib/python3.11/site-packages (from google-auth<3.0dev,>=2.26.1->google-cloud-storage) (0.4.2)
+Requirement already satisfied: rsa<5,>=3.1.4 in ./.venv/lib/python3.11/site-packages (from google-auth<3.0dev,>=2.26.1->google-cloud-storage) (4.9.1)
+Requirement already satisfied: charset-normalizer<4,>=2 in ./.venv/lib/python3.11/site-packages (from requests<3.0.0dev,>=2.18.0->google-cloud-storage) (3.4.2)
+Requirement already satisfied: idna<4,>=2.5 in ./.venv/lib/python3.11/site-packages (from requests<3.0.0dev,>=2.18.0->google-cloud-storage) (3.10)
+Requirement already satisfied: urllib3<3,>=1.21.1 in ./.venv/lib/python3.11/site-packages (from requests<3.0.0dev,>=2.18.0->google-cloud-storage) (2.4.0)
+Requirement already satisfied: certifi>=2017.4.17 in ./.venv/lib/python3.11/site-packages (from requests<3.0.0dev,>=2.18.0->google-cloud-storage) (2025.4.26)
+Requirement already satisfied: pyasn1<0.7.0,>=0.6.1 in ./.venv/lib/python3.11/site-packages (from pyasn1-modules>=0.2.1->google-auth<3.0dev,>=2.26.1->google-cloud-storage) (0.6.1)
+Downloading google_cloud_storage-3.1.0-py2.py3-none-any.whl (174 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 174.9/174.9 kB 6.4 MB/s eta 0:00:00
+Downloading google_cloud_core-2.4.3-py2.py3-none-any.whl (29 kB)
+Downloading google_crc32c-1.7.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (32 kB)
+Downloading google_resumable_media-2.7.2-py2.py3-none-any.whl (81 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 81.3/81.3 kB 4.4 MB/s eta 0:00:00
+Installing collected packages: google-crc32c, google-resumable-media, google-cloud-core, google-cloud-storage
+Successfully installed google-cloud-core-2.4.3 google-cloud-storage-3.1.0 google-crc32c-1.7.1 google-resumable-media-2.7.2

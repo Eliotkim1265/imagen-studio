@@ -1,0 +1,8 @@
+[
+    {
+      "origin": ["https://media-studio-app-498938998175.us-central1.run.app"],
+      "method": ["GET"],
+      "responseHeader": ["Content-Type", "Authorization"], 
+      "maxAgeSeconds": 3600
+    }
+  ]

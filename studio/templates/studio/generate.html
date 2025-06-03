@@ -1,0 +1,117 @@
+{% extends "studio/base.html" %}
+{% block title %}Generate Images{% endblock %}
+
+{% block content_container %}
+<div class="pt-4 pb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="main-title mb-0">Generate Images</h1>
+    </div>
+    <p class="text-muted mb-4">Create unique visuals from text prompts. Generated images will be saved to your Cloud Storage.</p>
+
+    <form method="post" class="studio-form p-lg-4 p-3 mb-5">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+                {% for error in form.non_field_errors %} <p>{{ error }}</p> {% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="form-section mb-3 p-3">
+                    {{ form.prompt.label_tag }}
+                    {{ form.prompt }}
+                    {% if form.prompt.errors %}<div class="invalid-feedback d-block mt-1">{{ form.prompt.errors.0 }}</div>{% endif %}
+                </div>
+                <div class="form-section mb-3 p-3">
+                    {{ form.negative_prompt.label_tag }}
+                    {{ form.negative_prompt }}
+                    {% if form.negative_prompt.errors %}<div class="invalid-feedback d-block mt-1">{{ form.negative_prompt.errors.0 }}</div>{% endif %}
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="form-section mb-3 p-3">
+                    {{ form.number_of_images.label_tag }}
+                    {{ form.number_of_images }}
+                    <output class="range-value" for="{{ form.number_of_images.id_for_label }}">{{ form.number_of_images.value|default_if_none:"1" }}</output>
+                    {% if form.number_of_images.errors %}<div class="invalid-feedback d-block mt-1">{{ form.number_of_images.errors.0 }}</div>{% endif %}
+                </div>
+                <div class="form-section mb-3 p-3">
+                    {{ form.aspect_ratio.label_tag }}
+                    {{ form.aspect_ratio }}
+                    {% if form.aspect_ratio.errors %}<div class="invalid-feedback d-block mt-1">{{ form.aspect_ratio.errors.0 }}</div>{% endif %}
+                </div>
+                <div class="form-section mb-3 p-3">
+                    {{ form.guidance_scale.label_tag }}
+                    {{ form.guidance_scale }}
+                     <output class="range-value" for="{{ form.guidance_scale.id_for_label }}">{{ form.guidance_scale.value|default_if_none:"7.5" }}</output>
+                    {% if form.guidance_scale.errors %}<div class="invalid-feedback d-block mt-1">{{ form.guidance_scale.errors.0 }}</div>{% endif %}
+                </div>
+                <div class="form-section mb-3 p-3">
+                    {{ form.seed.label_tag }}
+                    {{ form.seed }}
+                    <div class="form-text small">Leave blank for random. 
+                        {% if settings.IMAGEN_ADD_WATERMARK %} 
+                        Note: Watermarking is enabled by policy; seed may not guarantee identical results.
+                        {% endif %}
+                    </div>
+                    {% if form.seed.errors %}<div class="invalid-feedback d-block mt-1">{{ form.seed.errors.0 }}</div>{% endif %}
+                </div>
+                <div class="form-section mb-3 p-3">
+                    <div class="form-check form-switch">
+                        {{ form.add_watermark }}
+                        {{ form.add_watermark.label_tag }}
+                    </div>
+                    <div class="form-text small">Cannot be used if a specific Seed is set.</div>
+                    {% if form.add_watermark.errors %}<div class="invalid-feedback d-block mt-1">{{ form.add_watermark.errors.0 }}</div>{% endif %}
+                </div>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary btn-lg w-100 mt-3">
+            <span class="material-icons-outlined">auto_awesome</span>
+            <span class="button-text">Generate</span>
+        </button>
+    </form>
+
+    {% if generated_image_results %} {# Expects a list of dicts #}
+    <hr class="my-5">
+    <h2 class="results-title">Generated Images</h2>
+    <div class="gallery-grid">
+        {% for result_item in generated_image_results %}
+        <div class="gallery-item card position-relative">
+            {% if result_item.signed_url and not result_item.signed_url|slice:":6" == "#error" %}
+                <img src="{{ result_item.signed_url }}" alt="Generated Image: {{ result_item.gcs_object_name|slice:"-40:" }}" class="card-img-top">
+                
+                <a href="{{ result_item.signed_url }}" download="{{ result_item.gcs_object_name|slice:settings.GCS_GENERATED_IMAGES_PREFIX|length|default:result_item.gcs_object_name|default:'generated_image.png' }}" class="btn btn-sm btn-light btn-download-card" title="Download Image">
+                    <span class="material-icons-outlined">download</span>
+                </a>
+                
+                <div class="card-body p-2">
+                    <p class="card-text small text-muted mb-1 text-truncate" title="{{ result_item.gcs_object_name }}">{{ result_item.gcs_object_name|slice:"-40:" }}</p>
+                    <div class="card-actions">
+                         <a href="{{ result_item.signed_url }}" class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener noreferrer" title="View Full Size">
+                            <span class="material-icons-outlined">open_in_new</span>
+                         </a>
+                         <a href="{% url 'studio:edit' %}?original_gcs_path={{ result_item.gcs_object_name }}" class="btn btn-sm btn-outline-primary" title="Edit this image">
+                             <span class="material-icons-outlined">edit</span>
+                         </a>
+                         <button onclick="copyToClipboard('{{ result_item.signed_url }}', this)" class="btn btn-sm btn-outline-secondary" title="Copy URL">
+                            <span class="material-icons-outlined">content_copy</span>
+                        </button>
+                    </div>
+                </div>
+            {% else %}
+                <div class="card-body d-flex align-items-center justify-content-center p-3" style="height: 200px;">
+                    <div class="alert alert-danger m-0 text-center small">Error processing: {{ result_item.gcs_object_name|slice:"-40:" }}. <br>{{ result_item.signed_url }}</div>
+                </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+{# copyToClipboard is global in base.html #}
+{% endblock %}

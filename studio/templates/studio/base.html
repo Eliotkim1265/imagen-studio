@@ -1,0 +1,337 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Media Studio - {% block title %}Generate{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons|Material+Icons+Outlined" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'studio/css/style.css' %}">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <div class="app-container">
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <h2>Media Studio</h2>
+            </div>
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link {% if active_page == 'generate' %}active{% endif %}" href="{% url 'studio:generate' %}">
+                        <span class="material-icons-outlined">auto_awesome</span> Generate (Image)
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if active_page == 'edit' %}active{% endif %}" href="{% url 'studio:edit' %}">
+                        <span class="material-icons-outlined">edit</span> Edit (Image)
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if active_page == 'video_generate' %}active{% endif %}" href="{% url 'studio:video_generate' %}">
+                        <span class="material-icons-outlined">movie</span> Generate (Video)
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if active_page == 'browse' %}active{% endif %}" href="{% url 'studio:browse' %}">
+                        <span class="material-icons-outlined">photo_library</span> Browse Media
+                    </a>
+                </li>
+            </ul>
+        </nav>
+
+        <main class="main-content">
+            <div class="container-fluid">
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show mt-3" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+                {% block content_container %}
+                <div class="pt-4 pb-5"> {# Default padding for content pages #}
+                    {% block content %}{% endblock %}
+                </div>
+                {% endblock %}
+            </div>
+        </main>
+    </div>
+
+    <div class="modal fade" id="mediaSelectorModal" tabindex="-1" aria-labelledby="mediaSelectorModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable"> {# Increased size to modal-xl #}
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="mediaSelectorModalLabel">Choose from Your Media</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <input type="text" id="mediaSelectorSearch" class="form-control form-control-sm" placeholder="Search media by name...">
+                    </div>
+                    <div id="mediaSelectorSpinner" class="text-center my-5" style="display: none;">
+                        <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                            <span class="visually-hidden">Loading media...</span>
+                        </div>
+                        <p class="mt-2">Loading media...</p>
+                    </div>
+                    <div id="mediaSelectorError" class="alert alert-danger" style="display: none;"></div>
+                    <div class="gallery-grid media-selector-gallery-grid" id="mediaSelectorGallery">
+                        </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    // --- Global Variables for Media Selector ---
+    let currentMediaSelectorTargetInputId = null;
+    let currentMediaSelectorTargetPreviewContainerId = null;
+    let currentMediaSelectorTargetPreviewImgId = null;
+    let currentMediaSelectorTargetFileUploadIdToClear = null;
+    let currentMediaSelectorMediaType = 'image'; // Default, will be updated by openMediaSelector
+
+    // --- Global Helper Functions ---
+    function copyToClipboard(text, buttonElement) {
+        navigator.clipboard.writeText(text).then(function() {
+            const originalHTML = buttonElement.innerHTML;
+            buttonElement.innerHTML = '<span class="material-icons-outlined" style="font-size:1rem; vertical-align:middle;">check</span> Copied!';
+            buttonElement.classList.add('btn-success');
+            buttonElement.classList.remove('btn-outline-secondary');
+            setTimeout(() => {
+                buttonElement.innerHTML = originalHTML;
+                buttonElement.classList.remove('btn-success');
+                buttonElement.classList.add('btn-outline-secondary');
+            }, 2500);
+        }, function(err) {
+            console.error('Could not copy text: ', err);
+            const originalHTML = buttonElement.innerHTML;
+            buttonElement.innerHTML = '<span class="material-icons-outlined" style="font-size:1rem; vertical-align:middle;">error_outline</span> Error';
+            buttonElement.classList.add('btn-danger');
+            buttonElement.classList.remove('btn-outline-secondary');
+            setTimeout(() => {
+                buttonElement.innerHTML = originalHTML;
+                buttonElement.classList.remove('btn-danger');
+                buttonElement.classList.add('btn-outline-secondary');
+            }, 2000);
+        });
+    }
+
+    function setupImagePreview(uploadInputId, uploadPreviewContainerId, uploadPreviewImgId, mediaPathInputIdToClear) {
+        const inputElement = document.getElementById(uploadInputId);
+        if (!inputElement) { /* console.warn("setupImagePreview: Upload input not found:", uploadInputId); */ return; }
+        const previewContainer = document.getElementById(uploadPreviewContainerId);
+        const previewImage = document.getElementById(uploadPreviewImgId);
+        const mediaPathInput = document.getElementById(mediaPathInputIdToClear);
+
+        if (previewContainer && previewImage) {
+            inputElement.addEventListener('change', function(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        previewImage.src = e.target.result;
+                        previewContainer.style.display = 'block';
+                    }
+                    reader.readAsDataURL(file);
+                    if (mediaPathInput) { mediaPathInput.value = ''; } 
+                    
+                    const gcsPreviewContainerId = uploadPreviewContainerId.replace('_upload_preview_container', '_gcs_preview_container');
+                    removeGCSPreview(mediaPathInputIdToClear, gcsPreviewContainerId, gcsPreviewContainerId.replace('_gcs_preview_container', '_gcs_preview'));
+
+                } else {
+                    previewImage.src = '#';
+                    previewContainer.style.display = 'none';
+                }
+            });
+        } else {
+            // console.warn("setupImagePreview: Preview container or image element not found for", uploadInputId);
+        }
+    }
+
+    function removeImagePreview(uploadInputId, uploadPreviewContainerId, uploadPreviewImgId) {
+        const inputElement = document.getElementById(uploadInputId);
+        if (!inputElement) return;
+        inputElement.value = null;
+        
+        const previewContainer = document.getElementById(uploadPreviewContainerId);
+        const previewImage = document.getElementById(uploadPreviewImgId);
+        if (previewImage) previewImage.src = '#';
+        if (previewContainer) previewContainer.style.display = 'none';
+    }
+
+    function removeGCSPreview(mediaPathInputId, gcsPreviewContainerId, gcsPreviewImgId) {
+        const mediaPathInput = document.getElementById(mediaPathInputId);
+        if (mediaPathInput) mediaPathInput.value = '';
+
+        const gcsPreviewContainer = document.getElementById(gcsPreviewContainerId);
+        const gcsPreviewImage = document.getElementById(gcsPreviewImgId);
+        const gcsPreviewText = document.getElementById(gcsPreviewContainerId ? gcsPreviewContainerId.replace('_gcs_preview_container', '_gcs_preview_text') : null);
+
+        if (gcsPreviewImage) gcsPreviewImage.src = '#';
+        if (gcsPreviewContainer) gcsPreviewContainer.style.display = 'none';
+        if (gcsPreviewText) gcsPreviewText.style.display = 'none';
+    }
+
+    // --- Media Selector Modal Logic (Now Global) ---
+    function openMediaSelector(targetInputId, targetGCSPreviewContainerId, targetGCSPreviewImgId, mediaType, targetFileUploadIdToClear) {
+        currentMediaSelectorTargetInputId = targetInputId;
+        currentMediaSelectorTargetPreviewContainerId = targetGCSPreviewContainerId;
+        currentMediaSelectorTargetPreviewImgId = targetGCSPreviewImgId;
+        currentMediaSelectorTargetFileUploadIdToClear = targetFileUploadIdToClear;
+        currentMediaSelectorMediaType = mediaType;
+
+        const modalElement = document.getElementById('mediaSelectorModal');
+        if (!modalElement) { console.error("Media Selector Modal HTML (#mediaSelectorModal) not found!"); return; }
+        const modal = bootstrap.Modal.getInstance(modalElement) || new bootstrap.Modal(modalElement);
+        
+        const gallery = document.getElementById('mediaSelectorGallery');
+        const spinner = document.getElementById('mediaSelectorSpinner');
+        const errorDiv = document.getElementById('mediaSelectorError');
+        const searchInput = document.getElementById('mediaSelectorSearch');
+        
+        if (!gallery || !spinner || !errorDiv || !searchInput) { console.error("Internal elements of media selector modal are missing!"); return; }
+        
+        gallery.innerHTML = ''; 
+        errorDiv.style.display = 'none';
+        spinner.style.display = 'block';
+        searchInput.value = '';
+        document.getElementById('mediaSelectorModalLabel').textContent = `Choose from Your ${mediaType.charAt(0).toUpperCase() + mediaType.slice(1)}s`;
+        
+        try { modal.show(); } 
+        catch (e) { console.error("Error showing Bootstrap modal:", e); spinner.style.display = 'none'; errorDiv.textContent = "Error opening media selector."; errorDiv.style.display = 'block'; return; }
+
+        fetchMediaForSelector(mediaType, '');
+    }
+
+    function fetchMediaForSelector(mediaType, searchTerm) {
+        const gallery = document.getElementById('mediaSelectorGallery');
+        const spinner = document.getElementById('mediaSelectorSpinner');
+        const errorDiv = document.getElementById('mediaSelectorError');
+        if (!gallery || !spinner || !errorDiv) { console.error("Modal gallery/spinner/error elements not found in fetchMediaForSelector"); return; }
+
+        gallery.innerHTML = '';
+        spinner.style.display = 'block';
+        errorDiv.style.display = 'none';
+
+        let apiUrl = `/api/list-media/?media_type=${mediaType}`;
+        if (searchTerm) {
+            apiUrl += `&name_contains=${encodeURIComponent(searchTerm)}`;
+        }
+
+        fetch(apiUrl)
+            .then(response => {
+                if (!response.ok) { throw new Error(`Network response: ${response.statusText} (${response.status})`); }
+                return response.json();
+            })
+            .then(data => {
+                spinner.style.display = 'none';
+                if (data.error) {
+                    errorDiv.textContent = data.error; errorDiv.style.display = 'block'; return;
+                }
+                if (data.media_files && data.media_files.length > 0) {
+                    data.media_files.forEach(item => {
+                        if (!item.url || item.url.startsWith("#error")) return;
+
+                        const itemCard = document.createElement('div');
+                        // ... (rest of card creation logic as previously provided)
+                        itemCard.className = 'gallery-item card media-selector-item';
+                        itemCard.style.cursor = 'pointer';
+                        itemCard.dataset.gcsPath = item.gcs_path; 
+                        itemCard.dataset.signedUrl = item.url;
+
+                        let mediaElementHTML;
+                        if (item.type === 'image') {
+                            mediaElementHTML = `<img src="${item.url}" class="card-img-top" alt="${item.name}" style="height: 120px; object-fit: cover;">`;
+                        } else if (item.type === 'video') {
+                            mediaElementHTML = `<video width="100%" style="height: 120px; background-color:#000;" preload="metadata" muted loop onmouseover="this.play()" onmouseout="this.pause();this.currentTime=0;"><source src="${item.url}" type="video/mp4"></video>`;
+                        } else { mediaElementHTML = `<div class="p-2 text-muted small d-flex align-items-center justify-content-center" style="height:120px;">Preview N/A</div>`; }
+                        
+                        itemCard.innerHTML = `
+                            ${mediaElementHTML}
+                            <div class="card-body p-1" style="overflow:hidden;">
+                                <p class="card-text small text-muted text-truncate mb-0" title="${item.name}">${item.name}</p>
+                            </div>
+                        `;
+                        itemCard.addEventListener('click', function() {
+                            selectMediaFromModal(this.dataset.gcsPath, this.dataset.signedUrl);
+                            const modalInstance = bootstrap.Modal.getInstance(document.getElementById('mediaSelectorModal'));
+                            if (modalInstance) modalInstance.hide();
+                        });
+                        gallery.appendChild(itemCard);
+                    });
+                } else { gallery.innerHTML = '<p class="text-center text-muted p-3">No media found matching your criteria.</p>'; }
+            })
+            .catch(error => {
+                spinner.style.display = 'none';
+                errorDiv.textContent = `Error fetching media: ${error.message}. Please check server logs.`; 
+                errorDiv.style.display = 'block';
+                console.error('Error fetching media for selector:', error);
+            });
+    }
+
+    function selectMediaFromModal(gcsPath, signedUrl) {
+        const targetInput = document.getElementById(currentMediaSelectorTargetInputId);
+        const targetPreviewContainer = document.getElementById(currentMediaSelectorTargetPreviewContainerId);
+        const targetPreviewImage = document.getElementById(currentMediaSelectorTargetPreviewImgId);
+        const targetPreviewText = document.getElementById(currentMediaSelectorTargetPreviewContainerId ? currentMediaSelectorTargetPreviewContainerId.replace('_gcs_preview_container', '_gcs_preview_text') : null);
+
+        if (targetInput) {
+            // For simplicity, store the full GCS path. The view's form processing
+            // can handle if it needs to be relative to a specific prefix for saving.
+            targetInput.value = gcsPath; 
+        }
+        if (targetPreviewImage && targetPreviewContainer) {
+            targetPreviewImage.src = signedUrl;
+            targetPreviewContainer.style.display = 'block';
+            if (targetPreviewText) targetPreviewText.style.display = 'block';
+        }
+        if(currentMediaSelectorTargetFileUploadIdToClear) {
+            removeImagePreview(currentMediaSelectorTargetFileUploadIdToClear, 
+                               currentMediaSelectorTargetFileUploadIdToClear.replace('id_', '') + '_preview_container',
+                               currentMediaSelectorTargetFileUploadIdToClear.replace('id_', '') + '_preview');
+        }
+    }
+
+    // General DOMContentLoaded for sliders, button loading, and media selector search
+    document.addEventListener('DOMContentLoaded', function () {
+        // Range Slider JS
+        const rangeInputs = document.querySelectorAll('input[type="range"]');
+        rangeInputs.forEach(input => {
+            const output = document.querySelector(`output[for="${input.id}"]`);
+            if (output) {
+                output.textContent = input.value;
+                input.addEventListener('input', function() { output.textContent = this.value; });
+            }
+        });
+
+        // Button Loading State JS
+        const forms = document.querySelectorAll('form.studio-form');
+        forms.forEach(form => {
+            form.addEventListener('submit', function(event) {
+                // ... (button loading logic as before)
+            });
+        });
+
+        // Event listener for the media selector search input
+        const mediaSearchInput = document.getElementById('mediaSelectorSearch');
+        if(mediaSearchInput) {
+            let searchTimeout;
+            mediaSearchInput.addEventListener('keyup', function(event) {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    fetchMediaForSelector(currentMediaSelectorMediaType, this.value.trim());
+                }, 500);
+            });
+        }
+    });
+    </script>
+    {% block extra_scripts %}{% endblock %} {# For page-specific JavaScript initializations #}
+</body>
+</html>

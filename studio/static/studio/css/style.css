@@ -1,0 +1,446 @@
+/* Google-inspired Colors & Base */
+:root {
+    --google-blue: #4285F4;
+    --google-red: #DB4437;
+    --google-yellow: #F4B400;
+    --google-green: #0F9D58;
+    --google-grey-50: #F8F9FA;  /* Lighter for backgrounds */
+    --google-grey-100: #F1F3F4; /* For subtle backgrounds/borders */
+    --google-grey-200: #E8EAED; /* For borders, dividers */
+    --google-grey-300: #DADCE0; /* Slightly darker borders */
+    --google-grey-500: #BDC1C6; /* For icons, secondary text */
+    --google-grey-700: #5F6368; /* For text, labels */
+    --google-grey-800: #3C4043; /* For primary text, headings */
+    --google-grey-900: #202124; /* For darker headings */
+    --font-family-sans-serif: 'Google Sans', sans-serif, system-ui;
+    --box-shadow-soft: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+    --box-shadow-interactive: 0 4px 6px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.08);
+    --border-radius-standard: 8px;
+}
+
+body {
+    font-family: var(--font-family-sans-serif);
+    background-color: var(--google-grey-50); /* Slightly lighter main bg */
+    margin: 0;
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.app-container {
+    display: flex;
+    width: 100%;
+    height: 100%;
+}
+
+/* Sidebar */
+.sidebar {
+    width: 260px;
+    background-color: #FFFFFF;
+    padding: 20px 0;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--google-grey-200);
+    height: 100vh;
+    overflow-y: auto;
+    flex-shrink: 0;
+    box-shadow: var(--box-shadow-soft);
+}
+
+.sidebar-header {
+    padding: 0 24px 20px 24px;
+    border-bottom: 1px solid var(--google-grey-200);
+    margin-bottom: 10px;
+}
+
+.sidebar-header h2 {
+    font-size: 1.5rem;
+    font-weight: 500;
+    color: var(--google-blue);
+    margin: 0;
+}
+
+.sidebar .nav-link {
+    color: var(--google-grey-700);
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    font-weight: 500;
+    border-radius: 0 25px 25px 0;
+    margin-right: 12px;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.sidebar .nav-link .material-icons-outlined {
+    margin-right: 16px;
+    color: var(--google-grey-700);
+    transition: color 0.2s ease;
+}
+
+.sidebar .nav-link:hover {
+    background-color: var(--google-grey-100);
+    color: var(--google-grey-900);
+}
+.sidebar .nav-link:hover .material-icons-outlined {
+    color: var(--google-grey-900);
+}
+
+.sidebar .nav-link.active {
+    background-color: #E8F0FE;
+    color: var(--google-blue);
+    font-weight: 700;
+}
+
+.sidebar .nav-link.active .material-icons-outlined {
+    color: var(--google-blue);
+}
+
+/* Main Content */
+.main-content {
+    flex-grow: 1;
+    overflow-y: auto;
+    height: 100vh;
+    background-color: var(--google-grey-50);
+}
+.main-content .container-fluid {
+    max-width: 1300px; /* Slightly wider for more content */
+    margin-left: auto;
+    margin-right: auto;
+    padding-top: 1.5rem;
+    padding-bottom: 3rem; /* More space at bottom */
+}
+
+.main-title {
+    color: var(--google-grey-900);
+    font-weight: 500;
+    font-size: 1.8rem; /* Slightly larger */
+}
+
+.results-title {
+    color: var(--google-grey-800);
+    font-weight: 500;
+    margin-top: 2.5rem;
+    margin-bottom: 1.5rem;
+    font-size: 1.5rem;
+    border-bottom: 1px solid var(--google-grey-200);
+    padding-bottom: 0.5rem;
+}
+
+/* Forms */
+.studio-form {
+    background-color: #FFFFFF;
+    padding: 2rem; /* More padding */
+    border-radius: var(--border-radius-standard);
+    border: 1px solid var(--google-grey-200);
+    box-shadow: var(--box-shadow-soft);
+}
+.studio-form .form-section {
+    background-color: var(--google-grey-50); /* Subtle section background */
+    padding: 1.25rem; /* More padding */
+    border-radius: var(--border-radius-standard);
+    border: 1px solid var(--google-grey-200);
+}
+.studio-form .form-section h6 { /* Titles for image input sections */
+    font-weight: 500;
+    color: var(--google-grey-800);
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--google-grey-200);
+    padding-bottom: 0.5rem;
+}
+
+.form-label {
+    font-weight: 500;
+    color: var(--google-grey-700);
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.form-control, .form-select {
+    border-color: var(--google-grey-300);
+    transition: border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+    border-radius: 4px; /* Softer radius */
+}
+.form-control:focus, .form-select:focus {
+    border-color: var(--google-blue);
+    box-shadow: 0 0 0 0.2rem rgba(66, 133, 244, 0.2); /* Softer focus */
+}
+.form-text {
+    font-size: 0.8rem;
+    color: var(--google-grey-700);
+}
+
+/* Range slider custom styles */
+input[type="range"] {
+    accent-color: var(--google-blue);
+    padding: 0; /* Remove default padding for better alignment */
+}
+.range-value {
+    display: inline-block;
+    margin-left: 10px;
+    font-weight: 500;
+    color: var(--google-blue);
+    background-color: #E8F0FE;
+    padding: 0.1rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+}
+
+/* Buttons */
+.btn {
+    border-radius: 4px;
+    font-weight: 500;
+    transition: all 0.2s ease-in-out;
+}
+.btn-primary {
+    background-color: var(--google-blue);
+    border-color: var(--google-blue);
+    padding: 0.6rem 1.5rem;
+}
+.btn-primary:hover {
+    background-color: #3367D6;
+    border-color: #2A56C6;
+    box-shadow: var(--box-shadow-interactive);
+}
+.btn-primary:active, .btn-primary:focus {
+    background-color: #2A56C6 !important;
+    border-color: #2A56C6 !important;
+    box-shadow: 0 0 0 0.2rem rgba(66, 133, 244, 0.2) !important;
+}
+.btn-primary .material-icons-outlined {
+    margin-right: 8px;
+    vertical-align: bottom;
+    font-size: 1.2em; /* Make icon slightly larger */
+}
+.btn .spinner-border-sm {
+    margin-right: 8px;
+}
+
+.btn-outline-secondary {
+    color: var(--google-grey-700);
+    border-color: var(--google-grey-300);
+}
+.btn-outline-secondary:hover {
+    background-color: var(--google-grey-100);
+    color: var(--google-grey-800);
+    border-color: var(--google-grey-500);
+}
+
+/* Image Previews for Edit Page */
+.image-preview-container {
+    margin-top: 10px;
+    position: relative;
+}
+.image-preview {
+    max-width: 100%;
+    max-height: 150px; /* Adjust as needed */
+    border: 1px solid var(--google-grey-300);
+    border-radius: var(--border-radius-standard);
+    object-fit: contain; /* Or 'cover' */
+    background-color: var(--google-grey-50);
+}
+.image-preview-placeholder {
+    width: 100%;
+    height: 100px; /* Adjust as needed */
+    border: 2px dashed var(--google-grey-300);
+    border-radius: var(--border-radius-standard);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--google-grey-500);
+    font-size: 0.9rem;
+    background-color: var(--google-grey-50);
+}
+.remove-image-btn {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background-color: var(--google-red);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    font-size: 14px;
+    line-height: 22px; /* Adjust for vertical centering of 'x' */
+    text-align: center;
+    cursor: pointer;
+    box-shadow: var(--box-shadow-soft);
+    padding: 0; /* Remove padding for better icon centering */
+}
+.remove-image-btn:hover {
+    background-color: #C53929;
+}
+
+
+/* Gallery & Cards */
+.gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); /* Slightly larger minmax */
+    gap: 1.25rem; /* More gap */
+}
+.gallery-item.card {
+    border: 1px solid var(--google-grey-200);
+    border-radius: var(--border-radius-standard);
+    box-shadow: var(--box-shadow-soft);
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    overflow: hidden; /* Ensure img corners are rounded */
+}
+.gallery-item.card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--box-shadow-interactive);
+}
+.gallery-item .card-img-top {
+    width: 100%;
+    height: 200px; /* Fixed height for consistency */
+    object-fit: cover; /* Ensures image covers the area, might crop */
+    border-bottom: 1px solid var(--google-grey-200);
+    background-color: var(--google-grey-100); /* Placeholder bg for images */
+}
+.gallery-item .card-body {
+    padding: 0.75rem; /* Smaller padding for card body */
+    background-color: #FFFFFF;
+}
+.gallery-item .card-text {
+    font-size: 0.8rem;
+    margin-bottom: 0.5rem;
+}
+.gallery-item .card-actions {
+    display: flex;
+    justify-content: space-around; /* Or flex-start with margin */
+    align-items: center;
+}
+.gallery-item .card-actions .btn {
+    font-size: 0.8rem;
+    padding: 0.25rem 0.5rem;
+}
+.gallery-item .card-actions .btn .material-icons-outlined {
+    font-size: 1rem;
+    vertical-align: middle;
+}
+
+
+/* Radio button styling (as before, good for consistency) */
+.radio-group .form-check {
+    background-color: var(--google-grey-50);
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    margin-right: 0.5rem;
+    margin-bottom: 0.5rem;
+    border: 1px solid var(--google-grey-300);
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+    cursor: pointer;
+}
+.radio-group .form-check-input {
+    display: none;
+}
+.radio-group .form-check-label {
+    cursor: pointer;
+    color: var(--google-grey-700);
+    font-weight: 500;
+}
+.radio-group .form-check-input:checked + .form-check-label {
+    color: var(--google-blue);
+}
+.radio-group .form-check:has(.form-check-input:checked) {
+    background-color: #E8F0FE;
+    border-color: var(--google-blue);
+}
+.radio-group .form-check:hover {
+    background-color: var(--google-grey-100);
+}
+
+/* Alert styling (as before) */
+.alert { border-radius: 4px; }
+.alert-success { background-color: #E6F4EA; color: #1E8E3E; border-color: #A8DAB5;}
+.alert-danger { background-color: #FCE8E6; color: #C5221F; border-color: #F7B9B7;}
+.alert-warning { background-color: #FEF7E0; color: #AF6000; border-color: #FDE293;}
+.alert-info { background-color: #E8F0FE; color: #174EA6; border-color: #A9C5F5;}
+
+/* Responsive adjustments */
+@media (max-width: 992px) { /* Target tablets and smaller */
+    .main-content .container-fluid {
+        max-width: 100%;
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
+    }
+    .gallery-grid {
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .sidebar {
+        width: 100%;
+        height: auto;
+        position: static;
+        border-right: none;
+        border-bottom: 1px solid var(--google-grey-200);
+        box-shadow: none;
+    }
+    .main-content {
+        height: auto;
+    }
+    body, .app-container {
+        flex-direction: column;
+        overflow-y: auto;
+    }
+    .sidebar .nav-link {
+        margin-right: 0;
+        border-radius: 0;
+        justify-content: center;
+    }
+    .sidebar .nav-link .material-icons-outlined { margin-right: 8px; }
+    .sidebar-header { text-align: center; }
+    .gallery-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    }
+    .studio-form { padding: 1rem; }
+    .studio-form .form-section { padding: 1rem; }
+}
+
+/* studio/static/studio/css/style.css */
+/* ... (your existing styles) ... */
+
+.gallery-item.card {
+    /* Add if not already there */
+    position: relative; 
+    overflow: hidden; /* Good for ensuring button doesn't spill weirdly */
+}
+
+.gallery-item .card-img-top {
+    /* ... existing styles ... */
+    display: block; /* Ensures it behaves as a block for positioning context if needed */
+}
+
+/* Download Button on Card */
+.gallery-item .btn-download-card { 
+    /* You can use a specific class or style the anchor tag directly */
+    position: absolute;
+    top: 0.5rem;  /* Adjust as needed */
+    right: 0.5rem; /* Adjust as needed */
+    z-index: 10;  /* Ensure it's above the image */
+    padding: 0.25rem 0.5rem; /* Smaller padding for icon button */
+    line-height: 1;
+    background-color: rgba(255, 255, 255, 0.8); /* Semi-transparent background */
+    border: 1px solid var(--google-grey-300);
+}
+.gallery-item .btn-download-card:hover {
+    background-color: rgba(240, 240, 240, 0.9);
+}
+.gallery-item .btn-download-card .material-icons-outlined {
+    font-size: 1.25rem; /* Adjust icon size */
+    vertical-align: middle;
+}
+
+/* Card Actions for multiple buttons */
+.gallery-item .card-actions {
+    display: flex;
+    justify-content: space-between; /* Or space-around, flex-start */
+    align-items: center;
+    padding-top: 0.5rem;
+}
+.gallery-item .card-actions .btn .material-icons-outlined {
+    font-size: 1rem; /* Smaller icons for action row */
+    margin-right: 0.25rem; /* Space between icon and text if any */
+    vertical-align: text-bottom;
+}

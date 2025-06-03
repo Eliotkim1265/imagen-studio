@@ -1,0 +1,396 @@
+{% extends "studio/base.html" %}
+{% block title %}Edit Images{% endblock %}
+
+{% block content_container %}
+<div class="pt-4 pb-5">
+    <p class="text-muted mb-4">Modify images using text prompts and masks. Edits are saved to Cloud Storage. <br>For image inputs, upload a new file, provide a Media Path, or choose from your existing media.</p>
+
+    <form method="post" enctype="multipart/form-data" class="studio-form p-lg-4 p-3 mb-5">
+        {% csrf_token %}
+        <div class="row">
+            <div class="col-lg-5">
+                <div class="form-section mb-3 p-3">
+                    <h6 class="mb-3">1. Original Image</h6>
+                    {{ form.original_image_upload.label_tag }}
+                    {{ form.original_image_upload }}
+                    <div class="image-preview-container mt-2" id="original_image_upload_preview_container" style="display: none;">
+                        <img id="original_image_upload_preview" src="#" alt="Original Upload Preview" class="image-preview"/>
+                        <button type="button" class="remove-image-btn" onclick="removeImagePreview('{{ form.original_image_upload.id_for_label }}', 'original_image_upload_preview_container', 'original_image_upload_preview', '{{ form.original_image_media_path.id_for_label }}')">&times;</button>
+                    </div>
+                    {% if form.original_image_upload.errors %}<div class="invalid-feedback d-block mt-1">{{ form.original_image_upload.errors.0 }}</div>{% endif %}
+                    
+                    <div class="my-1 text-center text-muted small fw-bold">OR</div>
+                    
+                    {{ form.original_image_media_path.label_tag }}
+                    <div class="input-group">
+                        {{ form.original_image_media_path }}
+                        <button class="btn btn-outline-secondary" type="button" onclick="openMediaSelector('{{ form.original_image_media_path.id_for_label }}', 'original_image_gcs_preview_container', 'original_image_gcs_preview', 'image', '{{ form.original_image_upload.id_for_label }}')">
+                            <span class="material-icons-outlined" style="font-size: 1rem; vertical-align: middle;">folder_open</span> Choose
+                        </button>
+                    </div>
+                    <div class="form-text">Path within your Cloud Storage (e.g., <code>generated_images/my_image.png</code>).</div>
+                    <div class="image-preview-container mt-2" id="original_image_gcs_preview_container" {% if not original_image_signed_url_for_preview or original_image_signed_url_for_preview|slice:":6" == "#error" %}style="display: none;"{% endif %}>
+                        <img id="original_image_gcs_preview" src="{{ original_image_signed_url_for_preview|default:'#' }}" alt="Original Cloud Media Preview" class="image-preview"/>
+                        <button type="button" class="remove-image-btn" onclick="removeGCSPreview('{{ form.original_image_media_path.id_for_label }}', 'original_image_gcs_preview_container', 'original_image_gcs_preview')">&times;</button>
+                        <p class="small text-muted mt-1" id="original_image_gcs_preview_text" {% if not original_image_signed_url_for_preview or original_image_signed_url_for_preview|slice:":6" == "#error" %}style="display: none;"{% endif %}>Current Cloud Media Preview</p>
+                    </div>
+                    {% if original_image_signed_url_for_preview and original_image_signed_url_for_preview|slice:":6" == "#error" %}
+                         <div class="alert alert-warning small mt-2 p-2">Preview unavailable for current path: {{ original_image_signed_url_for_preview }}</div>
+                    {% endif %}
+                    {% if form.original_image_media_path.errors %}<div class="invalid-feedback d-block mt-1">{{ form.original_image_media_path.errors.0 }}</div>{% endif %}
+                </div>
+
+                <div class="form-section mb-3 p-3">
+                    <h6 class="mb-3">2. Mask Image (Optional)</h6>
+                    {{ form.mask_image_upload.label_tag }}
+                    {{ form.mask_image_upload }}
+                     <div class="image-preview-container mt-2" id="mask_image_upload_preview_container" style="display: none;">
+                        <img id="mask_image_upload_preview" src="#" alt="Mask Upload Preview" class="image-preview"/>
+                        <button type="button" class="remove-image-btn" onclick="removeImagePreview('{{ form.mask_image_upload.id_for_label }}', 'mask_image_upload_preview_container', 'mask_image_upload_preview', '{{ form.mask_image_media_path.id_for_label }}')">&times;</button>
+                    </div>
+                    {% if form.mask_image_upload.errors %}<div class="invalid-feedback d-block mt-1">{{ form.mask_image_upload.errors.0 }}</div>{% endif %}
+                    
+                    <div class="my-1 text-center text-muted small fw-bold">OR</div>
+
+                    {{ form.mask_image_media_path.label_tag }}
+                    <div class="input-group">
+                        {{ form.mask_image_media_path }}
+                        <button class="btn btn-outline-secondary" type="button" onclick="openMediaSelector('{{ form.mask_image_media_path.id_for_label }}', 'mask_image_gcs_preview_container', 'mask_image_gcs_preview', 'image', '{{ form.mask_image_upload.id_for_label }}')">
+                            <span class="material-icons-outlined" style="font-size: 1rem; vertical-align: middle;">folder_open</span> Choose
+                        </button>
+                    </div>
+                    <div class="form-text">Path within your Cloud Storage.</div>
+                     <div class="image-preview-container mt-2" id="mask_image_gcs_preview_container" {% if not mask_image_signed_url_for_preview or mask_image_signed_url_for_preview|slice:":6" == "#error" %}style="display: none;"{% endif %}>
+                        <img id="mask_image_gcs_preview" src="{{ mask_image_signed_url_for_preview|default:'#' }}" alt="Mask Cloud Media Preview" class="image-preview"/>
+                        <button type="button" class="remove-image-btn" onclick="removeGCSPreview('{{ form.mask_image_media_path.id_for_label }}', 'mask_image_gcs_preview_container', 'mask_image_gcs_preview')">&times;</button>
+                        <p class="small text-muted mt-1" id="mask_image_gcs_preview_text" {% if not mask_image_signed_url_for_preview or mask_image_signed_url_for_preview|slice:":6" == "#error" %}style="display: none;"{% endif %}>Current Cloud Media Preview</p>
+                    </div>
+                    {% if mask_image_signed_url_for_preview and mask_image_signed_url_for_preview|slice:":6" == "#error" %}
+                         <div class="alert alert-warning small mt-2 p-2">Preview unavailable for current path: {{ mask_image_signed_url_for_preview }}</div>
+                    {% endif %}
+                    {% if form.mask_image_media_path.errors %}<div class="invalid-feedback d-block mt-1">{{ form.mask_image_media_path.errors.0 }}</div>{% endif %}
+                </div>
+                
+                <div class="form-section mb-3 p-3">
+                    <h6 class="mb-3">3. Style Reference (Optional)</h6>
+                    {{ form.style_reference_image_upload.label_tag }}
+                    {{ form.style_reference_image_upload }}
+                     <div class="image-preview-container mt-2" id="style_image_upload_preview_container" style="display: none;">
+                        <img id="style_image_upload_preview" src="#" alt="Style Upload Preview" class="image-preview"/>
+                        <button type="button" class="remove-image-btn" onclick="removeImagePreview('{{ form.style_reference_image_upload.id_for_label }}', 'style_image_upload_preview_container', 'style_image_upload_preview', '{{ form.style_reference_image_media_path.id_for_label }}')">&times;</button>
+                    </div>
+                     {% if form.style_reference_image_upload.errors %}<div class="invalid-feedback d-block mt-1">{{ form.style_reference_image_upload.errors.0 }}</div>{% endif %}
+                    <div class="my-1 text-center text-muted small fw-bold">OR</div>
+                    {{ form.style_reference_image_media_path.label_tag }}
+                    <div class="input-group">
+                        {{ form.style_reference_image_media_path }}
+                        <button class="btn btn-outline-secondary" type="button" onclick="openMediaSelector('{{ form.style_reference_image_media_path.id_for_label }}', 'style_image_gcs_preview_container', 'style_image_gcs_preview', 'image', '{{ form.style_reference_image_upload.id_for_label }}')">
+                             <span class="material-icons-outlined" style="font-size: 1rem; vertical-align: middle;">folder_open</span> Choose
+                        </button>
+                    </div>
+                    <div class="form-text">Path within your Cloud Storage.</div>
+                     <div class="image-preview-container mt-2" id="style_image_gcs_preview_container" {% if not style_image_signed_url_for_preview or style_image_signed_url_for_preview|slice:":6" == "#error" %}style="display: none;"{% endif %}>
+                        <img id="style_image_gcs_preview" src="{{ style_image_signed_url_for_preview|default:'#' }}" alt="Style Cloud Media Preview" class="image-preview"/>
+                        <button type="button" class="remove-image-btn" onclick="removeGCSPreview('{{ form.style_reference_image_media_path.id_for_label }}', 'style_image_gcs_preview_container', 'style_image_gcs_preview')">&times;</button>
+                         <p class="small text-muted mt-1" id="style_image_gcs_preview_text" {% if not style_image_signed_url_for_preview or style_image_signed_url_for_preview|slice:":6" == "#error" %}style="display: none;"{% endif %}>Current Cloud Media Preview</p>
+                    </div>
+                    {% if style_image_signed_url_for_preview and style_image_signed_url_for_preview|slice:":6" == "#error" %}
+                         <div class="alert alert-warning small mt-2 p-2">Preview unavailable for current path: {{ style_image_signed_url_for_preview }}</div>
+                    {% endif %}
+                    {% if form.style_reference_image_media_path.errors %}<div class="invalid-feedback d-block mt-1">{{ form.style_reference_image_media_path.errors.0 }}</div>{% endif %}
+                </div>
+            </div>
+
+            <div class="col-lg-7">
+                <div class="form-section mb-3 p-3">
+                    <h6 class="mb-3">4. Editing Instructions</h6>
+                    {{ form.prompt.label_tag }}
+                    {{ form.prompt }}
+                    {% if form.prompt.errors %}<div class="invalid-feedback d-block mt-1">{{ form.prompt.errors.0 }}</div>{% endif %}
+                </div>
+                <div class="form-section mb-3 p-3">
+                    {{ form.edit_mode.label_tag }}
+                    <div class="radio-group mt-2">
+                        {% for radio in form.edit_mode %}
+                            <div class="form-check form-check-inline">
+                                {{ radio.tag }}
+                                <label class="form-check-label" for="{{ radio.id_for_label }}">{{ radio.choice_label }}</label>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    {% if form.edit_mode.errors %}<div class="invalid-feedback d-block mt-1">{{ form.edit_mode.errors.0 }}</div>{% endif %}
+                </div>
+                <div class="row">
+                    <div class="col-sm-6"><div class="form-section mb-3 p-3">{{ form.number_of_images.label_tag }} {{ form.number_of_images }} <output class="range-value" for="{{ form.number_of_images.id_for_label }}">{{ form.number_of_images.value|default_if_none:"1" }}</output> {% if form.number_of_images.errors %}<div class="invalid-feedback d-block">{{ form.number_of_images.errors.0 }}</div>{% endif %}</div></div>
+                    <div class="col-sm-6"><div class="form-section mb-3 p-3">{{ form.guidance_scale.label_tag }} {{ form.guidance_scale }} <output class="range-value" for="{{ form.guidance_scale.id_for_label }}">{{ form.guidance_scale.value|default_if_none:"7.5" }}</output> {% if form.guidance_scale.errors %}<div class="invalid-feedback d-block">{{ form.guidance_scale.errors.0 }}</div>{% endif %}</div></div>
+                </div>
+                 <div class="form-section mb-3 p-3">
+                    {{ form.hex_palette_json.label_tag }}
+                    {{ form.hex_palette_json }}
+                    {% if form.hex_palette_json.errors %}<div class="invalid-feedback d-block mt-1">{{ form.hex_palette_json.errors.0 }}</div>{% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-12">
+            <button type="submit" class="btn btn-primary btn-lg w-100 mt-3">
+                <span class="material-icons-outlined">edit_square</span>
+                <span class="button-text">Run Edit</span>
+            </button>
+        </div>
+    </form>
+
+    {% if edited_image_results %}
+    <hr class="my-5">
+    <h2 class="results-title">Edited Images</h2>
+    <div class="gallery-grid">
+        {% for result_item in edited_image_results %}
+        <div class="gallery-item card position-relative">
+             {% if result_item.signed_url and not result_item.signed_url|slice:":6" == "#error" %}
+                <img src="{{ result_item.signed_url }}" alt="Edited Image: {{ result_item.gcs_object_name|slice:"-40:" }}" class="card-img-top">
+                <a href="{{ result_item.signed_url }}" download="{{ result_item.gcs_object_name|slice:settings.GCS_EDITED_IMAGES_PREFIX|length|default:result_item.gcs_object_name|default:'edited_image.png' }}" class="btn btn-sm btn-light btn-download-card" title="Download Image">
+                    <span class="material-icons-outlined">download</span>
+                </a>
+                <div class="card-body p-2">
+                    <p class="card-text small text-muted mb-1 text-truncate" title="{{ result_item.gcs_object_name }}">{{ result_item.gcs_object_name|slice:"-40:" }}</p>
+                    <div class="card-actions">
+                        <a href="{{ result_item.signed_url }}" class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener noreferrer" title="View Full Size"><span class="material-icons-outlined">open_in_new</span></a>
+                        <a href="{% url 'studio:edit' %}?original_gcs_path={{ result_item.gcs_object_name }}" class="btn btn-sm btn-outline-primary" title="Edit this image"><span class="material-icons-outlined">edit</span></a>
+                        <button onclick="copyToClipboard('{{ result_item.signed_url }}', this)" class="btn btn-sm btn-outline-secondary" title="Copy URL"><span class="material-icons-outlined">content_copy</span></button>
+                    </div>
+                </div>
+            {% else %}
+                <div class="card-body d-flex align-items-center justify-content-center p-3" style="height: 200px;">
+                    <div class="alert alert-danger m-0 text-center small">Error processing: {{ result_item.gcs_object_name|slice:"-40:" }}.<br>{{ result_item.signed_url }}</div>
+                </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let currentTargetInputId = null;
+let currentTargetPreviewContainerId = null;
+let currentTargetPreviewImgId = null;
+let currentTargetFileUploadId = null;
+
+// --- Image Preview for File Uploads ---
+function setupImagePreview(uploadInputId, previewContainerId, previewImgId, mediaPathInputIdToClear) {
+    const inputElement = document.getElementById(uploadInputId);
+    if (!inputElement) { console.warn("Upload input not found for preview:", uploadInputId); return; }
+    const previewContainer = document.getElementById(previewContainerId);
+    const previewImage = document.getElementById(previewImgId);
+    const mediaPathInput = document.getElementById(mediaPathInputIdToClear);
+
+    if (previewContainer && previewImage) {
+        inputElement.addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    previewImage.src = e.target.result;
+                    previewContainer.style.display = 'block';
+                }
+                reader.readAsDataURL(file);
+                if (mediaPathInput) { mediaPathInput.value = ''; } // Clear media path input
+                // Hide the GCS/Media Path preview if an upload is made for the same item
+                const gcsPreviewContainer = document.getElementById(previewContainerId.replace('_upload_preview_container', '_gcs_preview_container'));
+                if (gcsPreviewContainer) gcsPreviewContainer.style.display = 'none';
+                const gcsPreviewText = document.getElementById(previewContainerId.replace('_upload_preview_container', '_gcs_preview_text'));
+                 if (gcsPreviewText) gcsPreviewText.style.display = 'none';
+
+
+            } else {
+                previewImage.src = '#'; 
+                previewContainer.style.display = 'none';
+            }
+        });
+    }
+}
+
+function removeImagePreview(uploadInputId, previewContainerId, previewImgId, mediaPathInputIdToClear) {
+    const inputElement = document.getElementById(uploadInputId);
+    if (!inputElement) return;
+    inputElement.value = null; 
+    
+    const previewContainer = document.getElementById(previewContainerId);
+    const previewImage = document.getElementById(previewImgId);
+    if (previewImage) previewImage.src = '#';
+    if (previewContainer) previewContainer.style.display = 'none';
+    
+    // Optionally, re-check if a GCS path exists and show its preview if upload is removed
+    const mediaPathInput = document.getElementById(mediaPathInputIdToClear);
+    if (mediaPathInput && mediaPathInput.value) {
+        // This would require re-fetching/re-setting the GCS preview if it was hidden
+        // For now, just clears the upload. User can re-select from GCS if needed.
+    }
+}
+
+function removeGCSPreview(mediaPathInputId, gcsPreviewContainerId, gcsPreviewImgId) {
+    const mediaPathInput = document.getElementById(mediaPathInputId);
+    if (mediaPathInput) mediaPathInput.value = '';
+
+    const gcsPreviewContainer = document.getElementById(gcsPreviewContainerId);
+    const gcsPreviewImage = document.getElementById(gcsPreviewImgId);
+    const gcsPreviewText = document.getElementById(gcsPreviewContainerId.replace('_gcs_preview_container', '_gcs_preview_text'));
+
+
+    if (gcsPreviewImage) gcsPreviewImage.src = '#';
+    if (gcsPreviewContainer) gcsPreviewContainer.style.display = 'none';
+    if (gcsPreviewText) gcsPreviewText.style.display = 'none';
+}
+
+
+// --- Media Selector Modal Logic ---
+function openMediaSelector(targetInputId, targetGCSPreviewContainerId, targetGCSPreviewImgId, mediaType, targetFileUploadIdToClear) {
+    currentTargetInputId = targetInputId;
+    currentTargetPreviewContainerId = targetGCSPreviewContainerId;
+    currentTargetPreviewImgId = targetGCSPreviewImgId;
+    currentTargetFileUploadId = targetFileUploadIdToClear;
+
+    const modal = new bootstrap.Modal(document.getElementById('mediaSelectorModal'));
+    const gallery = document.getElementById('mediaSelectorGallery');
+    const spinner = document.getElementById('mediaSelectorSpinner');
+    const errorDiv = document.getElementById('mediaSelectorError');
+    
+    gallery.innerHTML = ''; // Clear previous items
+    errorDiv.style.display = 'none';
+    spinner.style.display = 'block';
+    modal.show();
+
+    fetch(`/api/list-media/?media_type=${mediaType}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Network response was not ok: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            spinner.style.display = 'none';
+            if (data.error) {
+                errorDiv.textContent = data.error;
+                errorDiv.style.display = 'block';
+                return;
+            }
+            if (data.media_files && data.media_files.length > 0) {
+                data.media_files.forEach(item => {
+                    const col = document.createElement('div');
+                    col.className = 'gallery-item card media-selector-item'; // Use existing gallery styles
+                    col.style.cursor = 'pointer';
+                    col.dataset.gcsPath = item.gcs_path; // Full path within bucket
+                    col.dataset.signedUrl = item.url;
+
+                    let mediaElement;
+                    if (item.type === 'image') {
+                        mediaElement = `<img src="${item.url}" class="card-img-top" alt="${item.name}" style="height: 150px; object-fit: cover;">`;
+                    } else if (item.type === 'video') {
+                        mediaElement = `<video controls width="100%" style="height: 150px; background-color:#000;" preload="metadata"><source src="${item.url}" type="video/mp4"></video>`;
+                    } else {
+                        mediaElement = `<div class="p-2 text-muted small">Unsupported: ${item.name}</div>`;
+                    }
+                    col.innerHTML = `
+                        ${mediaElement}
+                        <div class="card-body p-1">
+                            <p class="card-text small text-muted text-truncate mb-0" title="${item.name}">${item.name}</p>
+                        </div>
+                    `;
+                    col.addEventListener('click', function() {
+                        selectMedia(this.dataset.gcsPath, this.dataset.signedUrl);
+                        modal.hide();
+                    });
+                    gallery.appendChild(col);
+                });
+            } else {
+                gallery.innerHTML = '<p class="text-center text-muted">No media found.</p>';
+            }
+        })
+        .catch(error => {
+            spinner.style.display = 'none';
+            errorDiv.textContent = `Error fetching media: ${error.message}`;
+            errorDiv.style.display = 'block';
+            console.error('Error fetching media for selector:', error);
+        });
+}
+
+function selectMedia(gcsPath, signedUrl) {
+    const targetInput = document.getElementById(currentTargetInputId);
+    const targetPreviewContainer = document.getElementById(currentTargetPreviewContainerId);
+    const targetPreviewImage = document.getElementById(currentTargetPreviewImgId);
+    const targetPreviewText = document.getElementById(currentTargetPreviewContainerId.replace('_gcs_preview_container', '_gcs_preview_text'));
+
+    if (targetInput) {
+        // The form field 'original_image_media_path' etc. expects path relative to GCS_OBJECT_PATH_PREFIX
+        // or full path if from temp etc. The gcsPath from API is full path in bucket.
+        let displayPath = gcsPath;
+        const mainPrefix = "{{ settings.GCS_OBJECT_PATH_PREFIX|escapejs }}"; // Get prefix from Django settings
+        if (gcsPath.startsWith(mainPrefix)) {
+            displayPath = gcsPath.substring(mainPrefix.length);
+        }
+        targetInput.value = displayPath; // Set the relative or full path as appropriate for the input field
+    }
+    if (targetPreviewImage && targetPreviewContainer) {
+        targetPreviewImage.src = signedUrl;
+        targetPreviewContainer.style.display = 'block';
+        if (targetPreviewText) targetPreviewText.style.display = 'block';
+    }
+    // Clear the corresponding file upload input
+    if(currentTargetFileUploadId) {
+        const fileUploadInput = document.getElementById(currentTargetFileUploadId);
+        if(fileUploadInput) fileUploadInput.value = null; // Clear file selection
+        // Also hide its direct upload preview
+        const uploadPreviewContainerId = currentTargetFileUploadId.replace('id_', '') + '_preview_container';
+        const uploadPreviewContainer = document.getElementById(uploadPreviewContainerId);
+        if (uploadPreviewContainer) uploadPreviewContainer.style.display = 'none';
+        const uploadPreviewImgId = currentTargetFileUploadId.replace('id_', '') + '_preview';
+        const uploadPreviewImg = document.getElementById(uploadPreviewImgId);
+        if (uploadPreviewImg) uploadPreviewImg.src = '#';
+
+    }
+}
+
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Setup previews for all direct file uploads
+    setupImagePreview('{{ form.original_image_upload.id_for_label }}', 'original_image_upload_preview_container', 'original_image_upload_preview', '{{ form.original_image_media_path.id_for_label }}');
+    setupImagePreview('{{ form.mask_image_upload.id_for_label }}', 'mask_image_upload_preview_container', 'mask_image_upload_preview', '{{ form.mask_image_media_path.id_for_label }}');
+    setupImagePreview('{{ form.style_reference_image_upload.id_for_label }}', 'style_image_upload_preview_container', 'style_image_upload_preview', '{{ form.style_reference_image_media_path.id_for_label }}');
+    
+    // For Video Page (if form is present, i.e. on video_generate.html)
+    const videoFormInputUploadId = '{{ form.input_image_upload.id_for_label }}';
+    if (document.getElementById(videoFormInputUploadId)) { // Check if this element exists on the page
+        setupImagePreview(videoFormInputUploadId, 'input_image_preview_container', 'input_image_preview', '{{ form.input_image_media_path.id_for_label }}');
+    }
+
+
+    // Clear file input if Media Path is typed into
+    const mediaPathAwareInputs = [
+        { uploadId: '{{ form.original_image_upload.id_for_label }}', mediaPathId: '{{ form.original_image_media_path.id_for_label }}', uploadPreviewContainerId: 'original_image_upload_preview_container', uploadPreviewImgId: 'original_image_upload_preview' },
+        { uploadId: '{{ form.mask_image_upload.id_for_label }}', mediaPathId: '{{ form.mask_image_media_path.id_for_label }}', uploadPreviewContainerId: 'mask_image_upload_preview_container', uploadPreviewImgId: 'mask_image_upload_preview' },
+        { uploadId: '{{ form.style_reference_image_upload.id_for_label }}', mediaPathId: '{{ form.style_reference_image_media_path.id_for_label }}', uploadPreviewContainerId: 'style_image_upload_preview_container', uploadPreviewImgId: 'style_image_upload_preview' },
+        { uploadId: '{{ form.input_image_upload.id_for_label }}', mediaPathId: '{{ form.input_image_media_path.id_for_label }}', uploadPreviewContainerId: 'input_image_preview_container', uploadPreviewImgId: 'input_image_preview' }
+    ];
+
+    mediaPathAwareInputs.forEach(pair => {
+        const mediaPathInput = document.getElementById(pair.mediaPathId);
+        const uploadInput = document.getElementById(pair.uploadId); 
+        if (mediaPathInput && uploadInput) { // Check if both elements exist (form might not be on page)
+            mediaPathInput.addEventListener('input', function() {
+                if (this.value.trim() !== '') {
+                    removeImagePreview(pair.uploadId, pair.uploadPreviewContainerId, pair.uploadPreviewImgId);
+                    // Hide GCS/Media path preview based on server-rendered URL on manual path input
+                    const gcsPreviewContainer = document.getElementById(pair.uploadPreviewContainerId.replace('_upload_preview_container', '_gcs_preview_container'));
+                    if (gcsPreviewContainer) gcsPreviewContainer.style.display = 'none';
+                     const gcsPreviewText = document.getElementById(pair.uploadPreviewContainerId.replace('_upload_preview_container', '_gcs_preview_text'));
+                    if (gcsPreviewText) gcsPreviewText.style.display = 'none';
+
+                }
+            });
+        }
+    });
+});
+// copyToClipboard is global in base.html
+</script>
+{% endblock %}
