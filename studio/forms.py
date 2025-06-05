@@ -61,9 +61,9 @@ class EditForm(forms.Form):
         widget=forms.ClearableFileInput(attrs={'class': 'form-control'}),
         required=False # Not required if Media Path is provided
     )
-    # Option 2: Media Path (formerly GCS Path)
-    original_image_media_path = forms.CharField( # RENAMED FIELD
-        label="OR Original Media Path (e.g., folder/image.png)",
+    # Option 2: Media Path 
+    original_image_media_path = forms.CharField( 
+        label="",
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Path within your Cloud Storage bucket'}),
         required=False
     )
@@ -74,7 +74,7 @@ class EditForm(forms.Form):
         required=False
     )
     mask_image_media_path = forms.CharField( # RENAMED FIELD
-        label="OR Mask Media Path (optional)",
+        label="",
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Path to mask in your Cloud Storage'}),
         required=False
     )
@@ -86,12 +86,12 @@ class EditForm(forms.Form):
     number_of_images = forms.IntegerField(
         min_value=1, max_value=4, initial=1,
         widget=forms.NumberInput(attrs={'class': 'form-control', 'type': 'range', 'step': '1'}),
-        label="# Images"
+        label="Number of Images"
     )
     EDIT_MODE_CHOICES = [
         ("mask_free", "Mask-Free Edit"), ("inpaint", "Inpaint/Insert"),
         ("outpaint", "Outpaint (Extend)"), ("background", "Background Edit (Semantic)"),
-        ("product_bg_swap", "Product Background Swap"),
+        # ("product_image_edit", "Product Image Edit"), (Currently not supported on Imagen 3 capability)
     ]
     edit_mode = forms.ChoiceField(
         choices=EDIT_MODE_CHOICES, initial="mask_free",
@@ -109,7 +109,7 @@ class EditForm(forms.Form):
         widget=forms.ClearableFileInput(attrs={'class': 'form-control'}),
         required=False
     )
-    style_reference_image_media_path = forms.CharField( # RENAMED FIELD
+    style_reference_image_media_path = forms.CharField( 
         label="OR Style Reference Media Path (optional)",
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Path to style image in Cloud Storage'}),
         required=False
@@ -158,7 +158,7 @@ class VideoGenerateForm(forms.Form):
         widget=forms.ClearableFileInput(attrs={'class': 'form-control'}),
         required=False
     )
-    input_image_media_path = forms.CharField( # RENAMED FIELD
+    input_image_media_path = forms.CharField( 
         label="OR Initial Media Path (Optional, e.g., folder/image.png)",
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Path within your Cloud Storage bucket'}),
         required=False
@@ -197,7 +197,7 @@ class VideoGenerateForm(forms.Form):
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         label="Enable Prompt Rewriting"
     )
-    add_watermark = forms.BooleanField( # From Veo's request.json (optional)
+    add_watermark = forms.BooleanField( 
         required=False, initial=True,
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         label="Add Watermark (if applicable by model)"

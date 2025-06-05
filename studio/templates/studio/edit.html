@@ -7,7 +7,7 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="main-title mb-0">Edit Images</h1>
     </div>
-    <p class="text-muted mb-4">Modify images using text prompts and masks. Edits are saved to Media library. <br>For image inputs, upload a new file, provide a Media Path from your library (e.g., <code>{{ gcs_path_prefix_for_display|default_if_none:"your_media_root/" }}image.png</code>), or choose from your media library.</p>
+    <p class="text-muted mb-4">Modify images using text prompts and masks. Edits are saved to Media library. <br>For image inputs, upload a new file, or choose from your media library.</p>
 
     <form method="post" enctype="multipart/form-data" class="studio-form p-lg-4 p-3 mb-5">
         {% csrf_token %}

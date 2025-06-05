@@ -1,5 +1,5 @@
 from django.db import models
-from django.contrib.auth.models import User # Assuming you might want to link jobs to users later
+from django.contrib.auth.models import User
 import uuid
 
 class VideoGenerationJob(models.Model):

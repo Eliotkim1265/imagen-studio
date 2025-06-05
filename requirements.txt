@@ -1,27 +1,21 @@
-google-genai
-# requirements.txt
-
 # Core Django framework
-Django~=5.0 # Or your preferred Django version, e.g., ~=4.2
+Django~=5.0 
 
 # For image processing (used by Django's ImageField and PIL/Pillow operations)
 Pillow>=9.0
 
 # Google Generative AI SDK (for Imagen 3 via the google.genai library)
-google-generativeai>=0.5.0 # Check for the latest stable version
+google-generativeai>=0.5.0 
+google-genai
 
-# For managing environment variables (good practice for API keys, etc.)
-python-dotenv>=0.20.0
-
-# Optional: For interacting with Google Cloud Storage (if you implement the full "Browse" feature)
+# For interacting with Google Cloud Storage 
 google-cloud-storage>=2.0.0
 
 requests>=2.25.0
 google-auth>=2.14.1 # For authenticating API requests
-
 dj_database_url 
 whitenoise
 gunicorn>=20.1.0
 python-dotenv>=1.0.0 # For local .env loading
 psycopg2-binary>=2.9.5 # If using PostgreSQL
-django-storages[google]>=1.14 # If using django-storages for GCS
+django-storages[google]>=1.14 

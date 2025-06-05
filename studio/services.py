@@ -4,7 +4,7 @@ import uuid
 import io
 import time
 import json
-from datetime import datetime # timedelta might not be needed if not generating signed URLs for display
+from datetime import datetime 
 from typing import Optional, List, Dict
 
 from PIL import Image
@@ -81,7 +81,6 @@ def _get_signed_gcs_url_for_direct_download(bucket_name: str, blob_name: str, ex
         return f"#error-signing-download-url-{os.path.basename(blob_name)}"
 
 
-# MODIFIED upload_pil_to_gcs to return gcs_object_name primarily
 def upload_pil_to_gcs(
     pil_image: Image.Image,
     gcs_bucket_name: str,
@@ -109,8 +108,6 @@ def upload_pil_to_gcs(
         raise # Re-raise the exception to be handled by the caller
 
 def load_pil_from_gcs(gcs_bucket_name: str, gcs_object_name: str) -> Image.Image:
-    # This function remains the same
-    # ... (implementation as before)
     if not gcs_bucket_name: raise ValueError("GCS_BUCKET_NAME not configured.")
     try:
         storage_client = _get_gcs_client()
@@ -186,7 +183,7 @@ def generate_images_from_prompt(
     }
     if apply_watermark_policy:
         if seed is not None: print(f"INFO: Seed {seed} provided, but IMAGEN_ADD_WATERMARK policy is True. Seed may be ignored.")
-        cfg_params["addWatermark"] = True # Verify field name
+        cfg_params["addWatermark"] = True 
     else:
         if seed is not None: cfg_params["seed"] = seed
         cfg_params["addWatermark"] = False
@@ -201,7 +198,7 @@ def generate_images_from_prompt(
         pil_img = convert_bytes_to_pil_image(img_data.image.image_bytes)
         obj_name = _generate_gcs_object_name(settings.GCS_GENERATED_IMAGES_PREFIX, prompt_text=prompt, extension="png")
         try:
-            # upload_pil_to_gcs now returns the GCS object name
+            # upload_pil_to_gcs returns the GCS object name
             gcs_object_name_created = upload_pil_to_gcs(pil_img, settings.GCS_BUCKET_NAME, obj_name)
             results.append({"gcs_object_name": gcs_object_name_created})
         except Exception as e: 
@@ -216,22 +213,20 @@ def edit_image_with_prompt(
     prompt: str, mode: str, guidance: Optional[float],
     style_pil_image: Optional[Image.Image], hex_codes: str
 ) -> List[Dict[str, str]]: # Returns list of dicts
-    # ... (setup as before) ...
     if not client: raise Exception("Google Gen AI Client not initialized.")
     if not settings.GCS_BUCKET_NAME: raise Exception("GCS_BUCKET_NAME not configured.")
-    # ... (reference image setup as before) ...
     buf = io.BytesIO(); original_pil_image.save(buf, format="PNG"); orig_bytes = buf.getvalue()
     orig_ref = types.RawReferenceImage(reference_id=0, reference_image=types.Image(image_bytes=orig_bytes, mime_type="image/png"))
     refs = [orig_ref]
-    if isinstance(mask_pil_image, Image.Image): # Check against Image.Image
+    if isinstance(mask_pil_image, Image.Image): 
         mb = io.BytesIO(); mask_pil_image.save(mb, format="PNG")
         refs.append(types.MaskReferenceImage(reference_id=1, reference_image=types.Image(image_bytes=mb.getvalue(), mime_type="png"),
                                             config=types.MaskReferenceConfig(mask_mode="MASK_MODE_USER_PROVIDED", mask_dilation=0.0)))
     elif mask_pil_image is None and mode in ["inpaint", "background"]:
         refs.append(types.MaskReferenceImage(reference_id=1, reference_image=None, config=types.MaskReferenceConfig(mask_mode="MASK_MODE_FOREGROUND", mask_dilation=0.0)))
 
-    mode_map = {"mask_free": "EDIT_MODE_DEFAULT", "inpaint": "EDIT_MODE_INPAINT_INSERTION", "outpaint": "EDIT_MODE_OUTPAINT", "background": "EDIT_MODE_INPAINT_INSERTION"}
-    edit_mode_sdk = mode_map.get(mode, "EDIT_MODE_INPAINT_INSERTION")
+    mode_map = {"mask_free": "EDIT_MODE_DEFAULT", "inpaint": "EDIT_MODE_INPAINT_INSERTION", "outpaint": "EDIT_MODE_OUTPAINT", "background": "EDIT_MODE_BGSWAP"}
+    edit_mode_sdk = mode_map.get(mode)
     cfg_params = {"edit_mode": edit_mode_sdk, "number_of_images": n,
                   "safety_filter_level": "BLOCK_MEDIUM_AND_ABOVE", "person_generation": "ALLOW_ADULT"}
     if guidance is not None: cfg_params["guidance_scale"] = guidance
@@ -253,10 +248,191 @@ def edit_image_with_prompt(
     return results
 
 
-# --- Veo 2 Video Generation Service (using google-genai SDK, NO POLLING) ---
+def edit_image_with_prompt(
+    original_pil_image: Image.Image, 
+    original_filename_for_naming: Optional[str],
+    n: int, # Number of images to generate
+    mask_pil_image: Optional[Image.Image],
+    prompt: str, 
+    mode: str, # UI mode: "mask_free", "inpaint", "outpaint", "background"
+    guidance: Optional[float],
+    style_pil_image: Optional[Image.Image], # For style transfer
+    hex_codes: Optional[str] # JSON string of hex codes for palette
+) -> List[Dict[str, str]]: # Returns list of dicts with 'gcs_object_name' or 'error'
+    if not client: 
+        raise Exception("Google Gen AI Client not initialized.")
+    if not settings.GCS_BUCKET_NAME: 
+        raise Exception("GCS_BUCKET_NAME not configured in settings.")
+
+    # 1. Prepare Base Image Reference
+    buf = io.BytesIO()
+    original_pil_image.save(buf, format="PNG") # Ensure PNG for transparency if applicable
+    orig_bytes = buf.getvalue()
+    # The SDK might expect types.Image directly or a RawReferenceImage.
+    # Based on imagen3_editing.py, it often uses types.Image directly for some inputs.
+    # Let's assume the SDK's edit_image call takes a list of reference images,
+    # where the first is the base image and subsequent ones are masks or style references if structured that way.
+    # The notebook used a list of RawReferenceImage and MaskReferenceImage for the `reference_images` param.
+    
+    base_image_sdk_ref = types.Image(image_bytes=orig_bytes, mime_type="image/png")
+    # Or, if RawReferenceImage is strictly needed for the base image:
+    # base_image_sdk_ref = types.RawReferenceImage(
+    #     reference_id=0, # Or a unique ID like "base"
+    #     reference_image=types.Image(image_bytes=orig_bytes, mime_type="image/png")
+    # )
+    # For now, let's assume the client.models.edit_image can take types.Image for the main image
+    # and types.Mask for the mask, as shown in some SDK patterns, or adjust if it strictly needs RawReferenceImage.
+    # The user's provided snippet for this function used RawReferenceImage, so we'll stick to that.
+    orig_ref = types.RawReferenceImage(
+        reference_id=0, 
+        reference_image=types.Image(image_bytes=orig_bytes, mime_type="image/png")
+    )
+    reference_images_list = [orig_ref] # Start with the base image
+
+    # 2. Prepare Mask Reference (if applicable)
+    mask_config_sdk = None
+    if isinstance(mask_pil_image, Image.Image): # User-provided mask
+        mb = io.BytesIO()
+        mask_pil_image.save(mb, format="PNG") # Ensure mask is PNG
+        mask_image_for_sdk = types.Image(image_bytes=mb.getvalue(), mime_type="image/png")
+        # The SDK might take types.Mask directly or a MaskReferenceImage.
+        # The notebook used MaskReferenceImage.
+        mask_ref_img_obj = types.MaskReferenceImage(
+            reference_id=1, # Or "mask"
+            reference_image=mask_image_for_sdk,
+            config=types.MaskReferenceConfig(
+                mask_mode="MASK_MODE_USER_PROVIDED",
+                mask_dilation=0.0 # Adjust if needed
+            )
+        )
+        reference_images_list.append(mask_ref_img_obj)
+    elif mask_pil_image is None: # No user mask, check if mode requires semantic masking
+        if mode == "inpaint":
+            mask_config_sdk = types.MaskReferenceConfig(mask_mode="MASK_MODE_FOREGROUND")
+        elif mode == "background": # For BGSWAP with auto-mask
+            mask_config_sdk = types.MaskReferenceConfig(mask_mode="MASK_MODE_BACKGROUND")
+        
+        if mask_config_sdk: # If an auto-mask config was created
+            auto_mask_ref = types.MaskReferenceImage(
+                reference_id=1, # Or "auto_mask"
+                reference_image=None, # API will generate mask based on config
+                config=mask_config_sdk
+            )
+            reference_images_list.append(auto_mask_ref)
+    mode_map = {
+        "mask_free": "EDIT_MODE_DEFAULT",          # General editing
+        "inpaint": "EDIT_MODE_INPAINT_INSERTION",  # Inpainting or replacing within mask
+        "outpaint": "EDIT_MODE_OUTPAINT",          # Outpainting
+        "background": "EDIT_MODE_BGSWAP",          # Background swap/edit
+        "product_image_edit": "EDIT_MODE_PRODUCT_IMAGE" 
+    }
+    edit_mode_sdk = mode_map.get(mode)
+    if not edit_mode_sdk:
+        print(f"Warning: Unknown UI edit mode '{mode}'. Defaulting to Mask-Free Edit.")
+        edit_mode_sdk = "EDIT_MODE_DEFAULT"
+
+    # 4. Prepare top-level parameters for client.models.edit_image
+    api_call_params = {
+        "model": IMAGEN3_EDIT_MODEL,
+        "prompt": prompt,
+        "reference_images": reference_images_list, # List of RawReferenceImage and MaskReferenceImage
+    }
+
+    # Add style image if provided (as per imagen3_editing.py notebook, this is a top-level param)
+    if isinstance(style_pil_image, Image.Image):
+        style_buf = io.BytesIO()
+        style_pil_image.save(style_buf, format="PNG") # Or JPEG, whatever API prefers for style
+        api_call_params["style_reference_image"] = types.Image(
+            image_bytes=style_buf.getvalue(),
+            mime_type="image/png" # Or "image/jpeg"
+        )
+    
+    # Add palette colors if provided (as per imagen3_editing.py notebook, top-level param)
+    parsed_hex_codes = []
+    if hex_codes:
+        try:
+            parsed_hex_codes = json.loads(hex_codes)
+            if not (isinstance(parsed_hex_codes, list) and all(isinstance(code, str) for code in parsed_hex_codes)):
+                print(f"Warning: Invalid hex_codes format: {hex_codes}. Expected list of strings. Ignoring palette.")
+                parsed_hex_codes = []
+        except json.JSONDecodeError:
+            print(f"Warning: Could not parse hex_codes JSON: {hex_codes}. Ignoring palette.")
+            parsed_hex_codes = []
+    
+    if parsed_hex_codes:
+        api_call_params["palette_colors"] = types.Palette(colors=parsed_hex_codes)
+
+
+    # 5. Assemble EditImageConfig
+    config_params_for_sdk = {
+        "edit_mode": edit_mode_sdk,
+        "number_of_images": n,
+        "safety_filter_level": "BLOCK_MEDIUM_AND_ABOVE", # Or make configurable via settings
+        "person_generation": "ALLOW_ADULT",           # Or make configurable
+        # "output_format": "PNG", # Default is usually PNG
+    }
+    if guidance is not None:
+        config_params_for_sdk["guidance_scale"] = guidance
+    
+    # Specific config for outpainting if not using a user-provided outpainting mask
+    # This part is complex as true outpainting usually requires padding the image first
+    # and providing a mask of the new areas. The EDIT_MODE_OUTPAINT might work semantically
+    # or based on the extent of a user-provided mask.
+    if edit_mode_sdk == "EDIT_MODE_OUTPAINT" and not isinstance(mask_pil_image, Image.Image):
+        print("Warning: Outpainting without a user-provided mask might yield unpredictable results or use default extents.")
+        # You might need to set specific outpainting parameters here if the SDK supports them
+        # e.g., outpaint_config = types.OutpaintConfig(desired_width=..., desired_height=...)
+        # config_params_for_sdk["outpaint_config"] = outpaint_config # Hypothetical
+
+    api_call_params["config"] = types.EditImageConfig(**config_params_for_sdk)
+    
+    print(f"Calling client.models.edit_image with params: { {k: v for k, v in api_call_params.items() if k != 'reference_images'} }")
+    # (Not printing reference_images byte data to keep log clean)
+
+    # 6. Call the API
+    try:
+        resp = client.models.edit_image(**api_call_params)
+    except Exception as api_e:
+        print(f"Error calling Imagen 3 edit_image API: {api_e}")
+        import traceback
+        traceback.print_exc()
+        raise Exception(f"Imagen 3 API call failed: {api_e}")
+
+
+    if not resp.generated_images:
+        # Check for specific safety filter feedback if available
+        # rai_info = getattr(resp, 'rai_info', None) or getattr(resp, 'safety_feedback', None)
+        # if rai_info:
+        #     raise Exception(f"No images returned by editing model. Safety filters likely triggered. Details: {rai_info}")
+        raise Exception("No images were returned by the editing model. (Safety filters or invalid parameters?)")
+
+    # 7. Process Response & Upload to GCS
+    results = []
+    for i, img_data in enumerate(resp.generated_images):
+        pil_img = convert_bytes_to_pil_image(img_data.image.image_bytes)
+        # Construct a filename based on original name, prompt, and current mode for better organization
+        filename_hint = f"{mode}"
+        if original_filename_for_naming:
+            filename_hint += f"_{os.path.splitext(original_filename_for_naming)[0]}"
+        
+        obj_name = _generate_gcs_object_name(
+            base_prefix=settings.GCS_EDITED_IMAGES_PREFIX,
+            original_filename=filename_hint, # Use the constructed hint
+            prompt_text=prompt, 
+            extension="png"
+        )
+        try:
+            # upload_pil_to_gcs should return the GCS object name string
+            gcs_object_name_created = upload_pil_to_gcs(pil_img, settings.GCS_BUCKET_NAME, obj_name)
+            results.append({"gcs_object_name": gcs_object_name_created})
+        except Exception as e:
+            print(f"Error uploading edited image {i} to GCS: {e}")
+            results.append({"gcs_object_name": obj_name, "error": f"GCS Upload Failed: {str(e)}"})
+    return results
+
+
+# --- Veo 2 Video Generation Service (using google-genai SDK) ---
 def _upload_input_image_for_veo_sdk(pil_image: Image.Image, original_filename: Optional[str]) -> str:
-    # This remains the same, returns gs:// URI for Veo input
-    # ... (implementation as before) ...
     if not settings.GCS_BUCKET_NAME: raise ValueError("GCS_BUCKET_NAME for Veo inputs missing.")
     if not hasattr(settings, 'GCS_TEMP_INPUTS_PREFIX'): raise AttributeError("GCS_TEMP_INPUTS_PREFIX missing.")
     gcs_object_name = _generate_gcs_object_name(settings.GCS_TEMP_INPUTS_PREFIX, original_filename, extension="png")
@@ -272,9 +448,7 @@ def generate_video_with_veo_sdk(
     aspect_ratio: str, sample_count: int, duration_seconds: float,
     person_generation: str, enable_prompt_rewriting: bool
 ) -> VideoGenerationJob:
-    # ... (job creation and Veo LRO initiation as before, returns job object) ...
     # The check_and_update_veo_job_status will populate job.output_video_gcs_uris_json (raw gs:// URIs)
-    # and job.public_video_urls_json (which will now be PROXY URLs, updated in that function)
     if not client: raise Exception("Gen AI Client not initialized.")
     if not settings.GCS_BUCKET_NAME: raise Exception("GCS_BUCKET_NAME for video output missing.")
 
@@ -307,7 +481,7 @@ def generate_video_with_veo_sdk(
         job.status = 'FAILED'; job.error_message = f"Error initiating Veo: {str(e)}"; job.save()
         raise
 
-# MODIFIED check_and_update_veo_job_status
+# check_and_update_veo_job_status
 def check_and_update_veo_job_status(job_id: uuid.UUID) -> VideoGenerationJob:
     job = VideoGenerationJob.objects.get(id=job_id)
     if job.status not in ['PENDING', 'PROCESSING'] or not job.veo_operation_name: return job
@@ -321,7 +495,6 @@ def check_and_update_veo_job_status(job_id: uuid.UUID) -> VideoGenerationJob:
             else:
                 job.status = 'COMPLETED'; job.error_message = None
                 raw_video_gcs_object_names = [] # Store just object names relative to bucket
-                # public_urls will now be proxy URLs, constructed in the view
                 
                 final_result = current_op.result()
                 if final_result and hasattr(final_result, 'generated_videos'):
@@ -331,7 +504,7 @@ def check_and_update_veo_job_status(job_id: uuid.UUID) -> VideoGenerationJob:
                             if gcs_uri.startswith(f"gs://{settings.GCS_BUCKET_NAME}/"):
                                 object_name = gcs_uri[len(f"gs://{settings.GCS_BUCKET_NAME}/"):]
                                 raw_video_gcs_object_names.append(object_name)
-                            else: # Video might be in a different bucket if Veo outputted to a temp one
+                            else: 
                                 print(f"Warning: Video URI {gcs_uri} is not in the configured GCS_BUCKET_NAME.")
                                 raw_video_gcs_object_names.append(gcs_uri) # Store full URI if different bucket
                         else: print(f"Job {job.id}: Unexpected video_info structure: {video_info}")

@@ -14,8 +14,7 @@ from .services import (
     generate_images_from_prompt,
     edit_image_with_prompt,
     load_pil_from_gcs,
-    _generate_gcs_object_name, # Keep if used by views directly, or ensure services handle all naming
-    # _get_signed_gcs_url, # No longer primary for display, keep if used for direct downloads
+    _generate_gcs_object_name, 
     upload_pil_to_gcs, # Returns gcs_object_name
     generate_video_with_veo_sdk,
     check_and_update_veo_job_status,
@@ -23,13 +22,13 @@ from .services import (
     _get_gcs_client # For the proxy view
 )
 
-def process_image_input( # Renamed for general use, added request for session
+def process_image_input( 
     request,
     form_cleaned_data, 
     upload_field_key, 
     path_field_key, 
     session_uri_key, 
-    temp_prefix_setting_name # Pass the setting name as a string
+    temp_prefix_setting_name 
 ):
     pil_img, filename_for_naming, gcs_uri_for_session, proxy_url_for_preview = None, None, None, None
     
@@ -54,7 +53,7 @@ def process_image_input( # Renamed for general use, added request for session
             proxy_url_for_preview = f"#error-proxy-url-{temp_obj_name}"
 
     elif media_path and pil_img: # Image loaded via GCS path from form
-        full_obj_name = media_path # Assumes get_pil_image_from_form_data ensures this is full path in bucket
+        full_obj_name = media_path 
         # Logic from get_pil_image_from_form_data to ensure full_obj_name is correct
         if not any(media_path.startswith(p) for p in [settings.GCS_OBJECT_PATH_PREFIX, settings.GCS_TEMP_INPUTS_PREFIX, settings.GCS_GENERATED_IMAGES_PREFIX, settings.GCS_EDITED_IMAGES_PREFIX, settings.GCS_VIDEO_OUTPUTS_PREFIX]):
             full_obj_name = f"{settings.GCS_OBJECT_PATH_PREFIX.rstrip('/')}/{media_path.lstrip('/')}"
@@ -84,12 +83,7 @@ def process_image_input( # Renamed for general use, added request for session
     if gcs_uri_for_session: 
         request.session[session_uri_key] = gcs_uri_for_session
     else: 
-        # If no image was processed (neither upload nor path and not in session for this call),
-        # ensure the session key is removed if it was only for *this specific input group*.
-        # However, if it's a general "last original", you might not want to pop it unless a new one is explicitly cleared.
-        # For now, if no image is processed for this field group, we don't touch the session here,
-        # it will be handled by specific logic in the view if an input is cleared.
-        pass # Or request.session.pop(session_uri_key, None) if appropriate
+        pass 
 
     return pil_img, filename_for_naming, gcs_uri_for_session, proxy_url_for_preview
 
@@ -104,9 +98,6 @@ def get_pil_image_from_form_data(form_cleaned_data, upload_field_name, media_pat
         except Exception as e:
             raise forms.ValidationError(f"Could not open uploaded file '{upload_field_name}': {e}")
     elif media_path_from_form:
-        # This path is expected to be the GCS object name (path from bucket root)
-        # E.g., "media_studio_app_data/generated_images/image.png"
-        # OR "media_studio_app_data/temp_inputs/image.png"
         full_gcs_object_name = media_path_from_form.lstrip('/')
         try:
             return load_pil_from_gcs(settings.GCS_BUCKET_NAME, full_gcs_object_name)
@@ -139,19 +130,9 @@ def serve_gcs_media_view(request, gcs_object_name):
         
         content_type = blob.content_type or 'application/octet-stream'
         response = StreamingHttpResponse(file_iterator(blob), content_type=content_type)
-        
-        # Suggest filename for download, but display inline otherwise
-        # Modern browsers often ignore Content-Disposition: inline for videos/images and display them anyway.
         disposition_type = 'attachment' if request.GET.get('download') == 'true' else 'inline'
         response['Content-Disposition'] = f'{disposition_type}; filename="{os.path.basename(gcs_object_name)}"'
-        
-        # For video streaming, browsers might send Range requests.
-        # GCS client library's blob.open('rb') can handle Range requests if the underlying transport supports it.
-        # StreamingHttpResponse doesn't automatically handle Range requests from Django's side.
-        # For full-featured video seeking, more complex range request handling might be needed here
-        # or rely on GCS's direct serving capabilities (e.g. for a "download" button using a signed URL).
-        # For now, this provides basic streaming.
-        if blob.size: # Add Content-Length if available
+        if blob.size: 
              response['Content-Length'] = str(blob.size)
 
         return response
@@ -208,7 +189,7 @@ def generate_view(request):
             if any(not r.get('proxy_url','').startswith("#error") for r in generated_image_results_for_template):
                  messages.success(request, f"Image generation complete. Results below.")
             elif generated_image_results_for_template: # If all results are errors from service
-                 messages.warning(request, "Image generation process had issues. See details below.")
+                 messages.warning(request, "Image generation process had issues.")
             else: # Service returned nothing
                  messages.warning(request, "Image generation process completed, but no images were returned.")
 
@@ -235,7 +216,8 @@ def edit_view(request):
     original_image_proxy_url_for_preview = None
     mask_image_proxy_url_for_preview = None
     style_image_proxy_url_for_preview = None
-    style_gcs_object_name_for_form_display = None # <--- ADD THIS LINE
+    style_gcs_object_name_for_form_display = None 
+    mask_gcs_object_name_for_form_display = None
     original_gcs_object_name_for_form_field = None
     mask_gcs_object_name_for_form_field = None
     style_gcs_object_name_for_form_field = None
@@ -267,17 +249,17 @@ def edit_view(request):
         if original_gcs_object_name_for_form_field:
             initial_form_data['original_image_media_path'] = original_gcs_object_name_for_form_field # Form field gets full path from bucket root
             try: original_image_proxy_url_for_preview = reverse('studio:serve_gcs_media', kwargs={'gcs_object_name': original_gcs_object_name_for_form_field})
-            except Exception as e: messages.warning(request, f"Could not generate preview URL for original image: {e}")
+            except Exception as e: messages.warning(request, f"Could not generate preview for original image: {e}")
         
         if mask_gcs_object_name_for_form_field:
             initial_form_data['mask_image_media_path'] = mask_gcs_object_name_for_form_display
             try: mask_image_proxy_url_for_preview = reverse('studio:serve_gcs_media', kwargs={'gcs_object_name': mask_gcs_object_name_for_form_display})
-            except Exception as e: messages.warning(request, f"Could not generate preview URL for mask image: {e}")
+            except Exception as e: messages.warning(request, f"Could not generate preview for mask image: {e}")
 
         if style_gcs_object_name_for_form_display:
             initial_form_data['style_reference_image_media_path'] = style_gcs_object_name_for_form_display
             try: style_image_proxy_url_for_preview = reverse('studio:serve_gcs_media', kwargs={'gcs_object_name': style_gcs_object_name_for_form_display})
-            except Exception as e: messages.warning(request, f"Could not generate preview URL for style image: {e}")
+            except Exception as e: messages.warning(request, f"Could not generate preview for style image: {e}")
 
 
     form = EditForm(request.POST or None, initial=initial_form_data or None, files=request.FILES or None)
@@ -351,7 +333,7 @@ def edit_view(request):
                         })
                     else: edited_image_results_for_template.append(item)
                 
-                messages.success(request, f"{len(edited_image_results_for_template)} image(s) edited and saved to Cloud Storage!")
+                messages.success(request, f"{len(edited_image_results_for_template)} image edited and saved to Media. Result(s) Below!")
                 
                 current_initial_data = {}
                 if processed_original_gcs_uri:
@@ -438,7 +420,7 @@ def video_generate_view(request):
             try:
                 input_image_proxy_url_for_preview = reverse('studio:serve_gcs_media', kwargs={'gcs_object_name': gcs_object_name_for_initial_image_preview_logic})
             except Exception as e:
-                messages.warning(request, f"Could not generate preview URL for initial image '{gcs_object_name_for_initial_image_preview_logic}': {e}")
+                messages.warning(request, f"Could not generate preview for initial image")
         
         # --- Job Status Checking part for GET requests ---
         if job_id_to_check_on_get:
@@ -503,14 +485,12 @@ def video_generate_view(request):
                 duration_seconds=float(form.cleaned_data['duration_seconds']),
                 person_generation=form.cleaned_data['person_generation'],
                 enable_prompt_rewriting=form.cleaned_data.get('enable_prompt_rewriting', True)
-                # add_watermark is now handled by VideoGenerateForm and passed here if still present
             )
             messages.info(request, f"Video generation job {job.id} started. Status: {job.get_status_display()}. The page will auto-update.")
             return redirect(f"{request.path}?job_id={job.id}") # Redirect to GET with job_id
 
         except forms.ValidationError as ve: # Catch validation errors from get_pil_image_from_form_data or form.clean()
             messages.error(request, str(ve))
-            # Form will re-render with errors
         except Exception as e:
             messages.error(request, f"Error starting video generation: {e}")
             import traceback
@@ -539,7 +519,7 @@ def video_generate_view(request):
         'gcs_bucket_name_for_display': settings.GCS_BUCKET_NAME if settings.GCS_BUCKET_NAME != "your-gcs-bucket-name-here" else "[Not Set]",
         'gcs_path_prefix_for_display': settings.GCS_OBJECT_PATH_PREFIX, # For help text in template
         'input_image_proxy_url_for_preview': input_image_proxy_url_for_preview,
-        'settings': settings, # For accessing settings in template if needed
+        'settings': settings,
     }
     return render(request, 'studio/video_generate.html', context)
 
@@ -560,7 +540,7 @@ def check_video_job_status_api(request, job_id):
                     elif obj_name.startswith("gs://"): # From a different bucket
                         proxy_video_urls_for_api.append(obj_name.replace("gs://", "https://storage.googleapis.com/"))
                         continue
-                    else: # Assumed to be object name already
+                    else: 
                         obj_name_for_url = obj_name
                     proxy_video_urls_for_api.append(reverse('studio:serve_gcs_media', kwargs={'gcs_object_name': obj_name_for_url}))
             except json.JSONDecodeError: pass
@@ -644,21 +624,19 @@ def browse_view(request):
                 try:
                     proxy_url = reverse('studio:serve_gcs_media', kwargs={'gcs_object_name': item['gcs_path']})
                     processed_media_files_for_template.append({
-                        'proxy_url': proxy_url, # Renamed from 'url' to 'proxy_url' for clarity
+                        'proxy_url': proxy_url,
                         'type': item['type'],
                         'name': item['name'],
-                        'gcs_path': item['gcs_path'], # For "Edit Again" links for images
+                        'gcs_path': item['gcs_path'], 
                         'updated': item['updated']
                     })
                 except Exception as e_url:
-                    print(f"Error creating proxy URL for browse item {item['gcs_path']}: {e_url}")
-                    # Optionally skip or add an error placeholder
-            
+                    print(f"Error creating proxy URL for browse item {item['gcs_path']}: {e_url}")            
             if not processed_media_files_for_template:
                 if media_type_filter_val or name_filter_val:
                      messages.info(request, "No media found matching your current filters.")
                 else:
-                    messages.info(request, "No media found in your Cloud Storage or the location is empty.")
+                    messages.info(request, "No media found in your Storage.")
         except Exception as e:
             messages.error(request, f"Error Browse Cloud Storage: {e}")
             import traceback; traceback.print_exc();
@@ -667,7 +645,7 @@ def browse_view(request):
         'filter_form': filter_form,
         'media_files': processed_media_files_for_template, # Pass processed list
         'active_page': 'browse',
-        'gcs_bucket_name': settings.GCS_BUCKET_NAME, # For display in template if needed
-        'gcs_path_prefix': settings.GCS_OBJECT_PATH_PREFIX, # For display in template
+        'gcs_bucket_name': settings.GCS_BUCKET_NAME, 
+        'gcs_path_prefix': settings.GCS_OBJECT_PATH_PREFIX, 
         'settings': settings,
     })
